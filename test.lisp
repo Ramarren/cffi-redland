@@ -25,6 +25,8 @@
   (when *model*
     (%free-model *model*))
   (setf *world* (%new-world))
+  (%world-set-logger *world* *null* (callback basic-log))
+  (%world-open *world*)
   (setf *storage* (%new-storage *world* "hashes" "test" "hash-type='memory'"))
   (setf *model* (%new-model *world* *storage* *null*)))
 
