@@ -1355,7 +1355,7 @@
   (uri uri-pointer)
   (fh :pointer))
 
-(defcfun (%uri-to-string "librdf_uri_to_string") :string
+(defcfun (%uri-to-string "librdf_uri_to_string") new-string
   (uri uri-pointer))
 
 (defcfun (%uri-to-counted-string "librdf_uri_to_counted_string") :string
