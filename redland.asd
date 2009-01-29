@@ -7,7 +7,7 @@
   :maintainer "Jakub Higersberger <ramarren@gmail.com>"
   :author "Jakub Higersberger <ramarren@gmail.com>"
   :licence "BSD-style"
-  :depends-on (:cffi :alexandria :iterate)
+  :depends-on (:cffi :alexandria :iterate :trivial-garbage)
   :components ((:file "package")
                (:file "libraries" :depends-on ("package"))
                (cffi-grovel:grovel-file "redland-grovel" :depends-on ("package"))
