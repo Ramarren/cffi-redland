@@ -30,7 +30,7 @@
 (defctype raptor-iostream-pointer :pointer)
 (defctype serializer-pointer :pointer)
 (defctype serializer-factory-pointer :pointer)
-
+(defctype message-pointer :pointer)
 
 (defmethod translate-from-foreign (value (type (eql 'new-string)))
   (prog1
@@ -287,7 +287,19 @@
   (user-data :pointer))
 
 ;;; Logging
-;;; later
+
+(defmacro def-log (name return-type &body arguments)
+  `(defcfun (,(symbolicate "%LOG-MESSAGE-" name)
+              ,(format nil "librdf_log_message_~a"
+                       (substitute #\_ #\- (string-downcase (symbol-name name)))))
+       ,return-type
+     (message message-pointer)
+     ,@arguments))
+
+(def-log code :int)
+(def-log level log-level)
+(def-log facility log-facility)
+(def-log message :string)
 
 ;;; RDF Graph
 ;;; semi-automatically generated, review!
