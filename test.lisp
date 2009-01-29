@@ -7,6 +7,16 @@
 
 (defparameter *null* (null-pointer))
 
+(defcallback basic-log :int
+    ((user-data :pointer) (message message-pointer))
+  (declare (ignore user-data))
+  (format t "Received log message code ~a level ~a from ~a: ~a"
+          (%log-message-code message)
+          (%log-message-level message)
+          (%log-message-facility message)
+          (%log-message-message message))
+  1)
+
 (defun init-test ()
   (when *world*
     (%free-world *world*))
