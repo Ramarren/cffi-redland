@@ -547,7 +547,7 @@
 
 (defcfun (%new-node-from-uri-string "librdf_new_node_from_uri_string") node-pointer
   (world world-pointer)
-  (uri-string :pointer))
+  (uri-string :string))
 
 (defcfun (%new-node-from-uri "librdf_new_node_from_uri") node-pointer
   (world world-pointer)
@@ -556,29 +556,29 @@
 (defcfun (%new-node-from-uri-local-name "librdf_new_node_from_uri_local_name") node-pointer
   (world world-pointer)
   (uri uri-pointer)
-  (local-name :pointer))
+  (local-name :string))
 
 (defcfun (%new-node-from-normalised-uri-string "librdf_new_node_from_normalised_uri_string") node-pointer
   (world world-pointer)
-  (uri-string :pointer)
+  (uri-string :string)
   (source-uri uri-pointer)
   (base-uri uri-pointer))
 
 (defcfun (%new-node-from-literal "librdf_new_node_from_literal") node-pointer
   (world world-pointer)
-  (string :pointer)
+  (string :string)
   (xml-language :string)
   (is-wf-xml :int))
 
 (defcfun (%new-node-from-typed-literal "librdf_new_node_from_typed_literal") node-pointer
   (world world-pointer)
-  (value :pointer)
+  (value :string)
   (xml-language :string)
   (datatype-uri uri-pointer))
 
 (defcfun (%new-node-from-typed-counted-literal "librdf_new_node_from_typed_counted_literal") node-pointer
   (world world-pointer)
-  (value :pointer)
+  (value :string)
   (value-len size-t)
   (xml-language :string)
   (xml-language-len size-t)
@@ -586,7 +586,7 @@
 
 (defcfun (%new-node-from-blank-identifier "librdf_new_node_from_blank_identifier") node-pointer
   (world world-pointer)
-  (identifier :pointer))
+  (identifier :string))
 
 (defcfun (%new-node-from-node "librdf_new_node_from_node") node-pointer
   (node node-pointer))
@@ -1332,14 +1332,14 @@
 
 (defcfun (%new-uri "librdf_new_uri") uri-pointer
   (world world-pointer)
-  (uri-string :pointer))
+  (uri-string :string))
 
 (defcfun (%new-uri-from-uri "librdf_new_uri_from_uri") uri-pointer
   (old-uri uri-pointer))
 
 (defcfun (%new-uri-from-uri-local-name "librdf_new_uri_from_uri_local_name") uri-pointer
   (old-uri uri-pointer)
-  (local-name :pointer))
+  (local-name :string))
 
 (defcfun (%free-uri "librdf_free_uri") :void
   (uri uri-pointer))
@@ -1373,13 +1373,13 @@
   (uri uri-pointer))
 
 (defcfun (%new-uri-normalised-to-base "librdf_new_uri_normalised_to_base") uri-pointer
-  (uri-string :pointer)
+  (uri-string :string)
   (source-uri uri-pointer)
   (base-uri uri-pointer))
 
 (defcfun (%new-uri-relative-to-base "librdf_new_uri_relative_to_base") uri-pointer
   (base-uri uri-pointer)
-  (uri-string :pointer))
+  (uri-string :string))
 
 (defcfun (%new-uri-from-filename "librdf_new_uri_from_filename") uri-pointer
   (world world-pointer)
