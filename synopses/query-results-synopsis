@@ -1,0 +1,64 @@
+librdf_stream*      librdf_query_results_as_stream      (librdf_query_results *query_results);
+int                 librdf_query_results_get_count      (librdf_query_results *query_results);
+int                 librdf_query_results_next           (librdf_query_results *query_results);
+int                 librdf_query_results_finished       (librdf_query_results *query_results);
+int                 librdf_query_results_get_bindings   (librdf_query_results *query_results,
+                                                         const char ***names,
+                                                         librdf_node **values);
+librdf_node*        librdf_query_results_get_binding_value
+                                                        (librdf_query_results *query_results,
+                                                         int offset);
+const char*         librdf_query_results_get_binding_name
+                                                        (librdf_query_results *query_results,
+                                                         int offset);
+librdf_node*        librdf_query_results_get_binding_value_by_name
+                                                        (librdf_query_results *query_results,
+                                                         const char *name);
+int                 librdf_query_results_get_bindings_count
+                                                        (librdf_query_results *query_results);
+unsigned char*      librdf_query_results_to_counted_string
+                                                        (librdf_query_results *query_results,
+                                                         librdf_uri *format_uri,
+                                                         librdf_uri *base_uri,
+                                                         size_t *length_p);
+unsigned char*      librdf_query_results_to_string      (librdf_query_results *query_results,
+                                                         librdf_uri *format_uri,
+                                                         librdf_uri *base_uri);
+int                 librdf_query_results_to_file_handle (librdf_query_results *query_results,
+                                                         FILE *handle,
+                                                         librdf_uri *format_uri,
+                                                         librdf_uri *base_uri);
+int                 librdf_query_results_to_file        (librdf_query_results *query_results,
+                                                         const char *name,
+                                                         librdf_uri *format_uri,
+                                                         librdf_uri *base_uri);
+void                librdf_free_query_results           (librdf_query_results *query_results);
+int                 librdf_query_results_is_bindings    (librdf_query_results *query_results);
+int                 librdf_query_results_is_boolean     (librdf_query_results *query_results);
+int                 librdf_query_results_is_graph       (librdf_query_results *query_results);
+int                 librdf_query_results_is_syntax      (librdf_query_results *query_results);
+int                 librdf_query_results_get_boolean    (librdf_query_results *query_results);
+librdf_query_results_formatter* librdf_new_query_results_formatter
+                                                        (librdf_query_results *query_results,
+                                                         const char *name,
+                                                         librdf_uri *uri);
+librdf_query_results_formatter* librdf_new_query_results_formatter_by_mime_type
+                                                        (librdf_query_results *query_results,
+                                                         const char *mime_type);
+void                librdf_free_query_results_formatter (librdf_query_results_formatter *formatter);
+int                 librdf_query_results_formats_check  (librdf_world *world,
+                                                         const char *name,
+                                                         librdf_uri *uri,
+                                                         const char *mime_type);
+int                 librdf_query_results_formats_enumerate
+                                                        (librdf_world *world,
+                                                         unsigned int counter,
+                                                         const char **name,
+                                                         const char **label,
+                                                         unsigned char **uri_string,
+                                                         const char **mime_type);
+int                 librdf_query_results_formatter_write
+                                                        (raptor_iostream *iostr,
+                                                         librdf_query_results_formatter *formatter,
+                                                         librdf_query_results *results,
+                                                         librdf_uri *base_uri);

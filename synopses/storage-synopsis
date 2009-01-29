@@ -1,0 +1,101 @@
+int                 librdf_storage_enumerate            (librdf_world *world,
+                                                         unsigned int counter,
+                                                         const char **name,
+                                                         const char **label);
+librdf_storage*     librdf_new_storage                  (librdf_world *world,
+                                                         const char *storage_name,
+                                                         const char *name,
+                                                         const char *options_string);
+librdf_storage*     librdf_new_storage_with_options     (librdf_world *world,
+                                                         const char *storage_name,
+                                                         const char *name,
+                                                         librdf_hash *options);
+librdf_storage*     librdf_new_storage_from_storage     (librdf_storage *old_storage);
+librdf_storage*     librdf_new_storage_from_factory     (librdf_world *world,
+                                                         librdf_storage_factory *factory,
+                                                         const char *name,
+                                                         librdf_hash *options);
+void                librdf_free_storage                 (librdf_storage *storage);
+int                 librdf_storage_open                 (librdf_storage *storage,
+                                                         librdf_model *model);
+int                 librdf_storage_close                (librdf_storage *storage);
+int                 librdf_storage_size                 (librdf_storage *storage);
+int                 librdf_storage_add_statement        (librdf_storage *storage,
+                                                         librdf_statement *statement);
+int                 librdf_storage_add_statements       (librdf_storage *storage,
+                                                         librdf_stream *statement_stream);
+int                 librdf_storage_remove_statement     (librdf_storage *storage,
+                                                         librdf_statement *statement);
+int                 librdf_storage_contains_statement   (librdf_storage *storage,
+                                                         librdf_statement *statement);
+librdf_stream*      librdf_storage_serialise            (librdf_storage *storage);
+librdf_stream*      librdf_storage_find_statements      (librdf_storage *storage,
+                                                         librdf_statement *statement);
+librdf_stream*      librdf_storage_find_statements_with_options
+                                                        (librdf_storage *storage,
+                                                         librdf_statement *statement,
+                                                         librdf_node *context_node,
+                                                         librdf_hash *options);
+librdf_iterator*    librdf_storage_get_sources          (librdf_storage *storage,
+                                                         librdf_node *arc,
+                                                         librdf_node *target);
+librdf_iterator*    librdf_storage_get_arcs             (librdf_storage *storage,
+                                                         librdf_node *source,
+                                                         librdf_node *target);
+librdf_iterator*    librdf_storage_get_targets          (librdf_storage *storage,
+                                                         librdf_node *source,
+                                                         librdf_node *arc);
+librdf_iterator*    librdf_storage_get_arcs_in          (librdf_storage *storage,
+                                                         librdf_node *node);
+librdf_iterator*    librdf_storage_get_arcs_out         (librdf_storage *storage,
+                                                         librdf_node *node);
+int                 librdf_storage_has_arc_in           (librdf_storage *storage,
+                                                         librdf_node *node,
+                                                         librdf_node *property);
+int                 librdf_storage_has_arc_out          (librdf_storage *storage,
+                                                         librdf_node *node,
+                                                         librdf_node *property);
+int                 librdf_storage_context_add_statement
+                                                        (librdf_storage *storage,
+                                                         librdf_node *context,
+                                                         librdf_statement *statement);
+int                 librdf_storage_context_add_statements
+                                                        (librdf_storage *storage,
+                                                         librdf_node *context,
+                                                         librdf_stream *stream);
+int                 librdf_storage_context_remove_statement
+                                                        (librdf_storage *storage,
+                                                         librdf_node *context,
+                                                         librdf_statement *statement);
+int                 librdf_storage_context_remove_statements
+                                                        (librdf_storage *storage,
+                                                         librdf_node *context);
+librdf_stream*      librdf_storage_context_as_stream    (librdf_storage *storage,
+                                                         librdf_node *context);
+librdf_stream*      librdf_storage_context_serialise    (librdf_storage *storage,
+                                                         librdf_node *context);
+int                 librdf_storage_supports_query       (librdf_storage *storage,
+                                                         librdf_query *query);
+librdf_query_results* librdf_storage_query_execute      (librdf_storage *storage,
+                                                         librdf_query *query);
+int                 librdf_storage_sync                 (librdf_storage *storage);
+librdf_stream*      librdf_storage_find_statements_in_context
+                                                        (librdf_storage *storage,
+                                                         librdf_statement *statement,
+                                                         librdf_node *context_node);
+librdf_iterator*    librdf_storage_get_contexts         (librdf_storage *storage);
+librdf_node*        librdf_storage_get_feature          (librdf_storage *storage,
+                                                         librdf_uri *feature);
+int                 librdf_storage_set_feature          (librdf_storage *storage,
+                                                         librdf_uri *feature,
+                                                         librdf_node *value);
+int                 librdf_storage_transaction_commit   (librdf_storage *storage);
+void*               librdf_storage_transaction_get_handle
+                                                        (librdf_storage *storage);
+int                 librdf_storage_transaction_rollback (librdf_storage *storage);
+int                 librdf_storage_transaction_start    (librdf_storage *storage);
+int                 librdf_storage_transaction_start_with_handle
+                                                        (librdf_storage *storage,
+                                                         void *handle);
+void                librdf_storage_add_reference        (librdf_storage *storage);
+void                librdf_storage_remove_reference     (librdf_storage *storage);

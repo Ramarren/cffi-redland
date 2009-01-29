@@ -1,0 +1,27 @@
+librdf_uri*         librdf_new_uri                      (librdf_world *world,
+                                                         unsigned char *uri_string);
+librdf_uri*         librdf_new_uri_from_uri             (librdf_uri *old_uri);
+librdf_uri*         librdf_new_uri_from_uri_local_name  (librdf_uri *old_uri,
+                                                         unsigned char *local_name);
+void                librdf_free_uri                     (librdf_uri *uri);
+unsigned char*      librdf_uri_as_string                (librdf_uri *uri);
+unsigned char*      librdf_uri_as_counted_string        (librdf_uri *uri,
+                                                         size_t *len_p);
+void                librdf_uri_print                    (librdf_uri *uri,
+                                                         FILE *fh);
+unsigned char*      librdf_uri_to_string                (librdf_uri *uri);
+unsigned char*      librdf_uri_to_counted_string        (librdf_uri *uri,
+                                                         size_t *len_p);
+int                 librdf_uri_equals                   (librdf_uri *first_uri,
+                                                         librdf_uri *second_uri);
+int                 librdf_uri_is_file_uri              (librdf_uri *uri);
+const char*         librdf_uri_to_filename              (librdf_uri *uri);
+librdf_uri*         librdf_new_uri_normalised_to_base   (unsigned char *uri_string,
+                                                         librdf_uri *source_uri,
+                                                         librdf_uri *base_uri);
+librdf_uri*         librdf_new_uri_relative_to_base     (librdf_uri *base_uri,
+                                                         unsigned char *uri_string);
+librdf_uri*         librdf_new_uri_from_filename        (librdf_world *world,
+                                                         const char *filename);
+int                 librdf_uri_compare                  (librdf_uri *uri1,
+                                                         librdf_uri *uri2);
