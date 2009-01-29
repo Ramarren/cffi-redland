@@ -59,7 +59,7 @@
 (defcfun (%world-set-logger "librdf_world_set_logger") :void
   (world world-pointer)
   (user-data :pointer)
-  (warning-handler :pointer))
+  (logger-callback :pointer));callback user-data, message->int (nonzero means handled)
 
 (defcfun (%world-set-digest "librdf_world_set_digest") :void
   (world world-pointer)
