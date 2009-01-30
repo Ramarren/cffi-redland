@@ -288,6 +288,14 @@
 ;;; Model
 ;;; dropping less comprehensible functions
 
+(defun model-enumerate (counter &optional (world *world*))
+  (with-foreign-objects ((name :pointer)
+                         (label :pointer))
+    (let ((retval (%model-enumerate (get-pointer world) counter name label)))
+      (when (zerop retval)
+        (list (foreign-string-to-lisp (mem-ref name :pointer))
+              (foreign-string-to-lisp (mem-ref label :pointer)))))))
+
 (defun make-model (&key (world *world*) (storage *storage*) (options *null*))
   (wrap-pointer (%new-model (get-pointer world) (get-pointer storage) options) 'model))
 
@@ -514,6 +522,14 @@
 ;;; Parsers
 
 ;;; skipping some function
+
+(defun parser-enumerate (counter &optional (world *world*))
+  (with-foreign-objects ((name :pointer)
+                         (label :pointer))
+    (let ((retval (%parser-enumerate (get-pointer world) counter name label)))
+      (when (zerop retval)
+        (list (foreign-string-to-lisp (mem-ref name :pointer))
+              (foreign-string-to-lisp (mem-ref label :pointer)))))))
 
 (defun make-parser (name &key (world *world*) (mime-type *null*) (type-uri *null*))
   (wrap-pointer (%new-parser (get-pointer world) name mime-type (get-pointer type-uri)) 'parser))
@@ -864,3 +880,11 @@
 
 (defun uri-compare (uri1 uri2)
   (%uri-compare (get-pointer uri1) (get-pointer uri2)))
+
+;;; auxiliary
+
+(defun get-all-enumerate (enumerate-fun &optional (world *world*))
+  (iter (for i from 0)
+        (for e = (funcall enumerate-fun i world))
+        (while e)
+        (collect e)))
