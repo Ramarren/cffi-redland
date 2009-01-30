@@ -45,3 +45,15 @@
          (princ (%statement-to-string (%stream-get-object stream)))
          (terpri)
          (%stream-next stream))))
+
+(defun test-mid-level-query ()
+  (with-world (:log-function (make-log-everything *standard-output*))
+    (with-storage ("hashes" "test" "hash-type='memory'")
+      (with-model ()
+        (model-load (make-uri "http://ramarren.blox.pl/rss2"))
+        (let ((query (make-query "SELECT ?items ?arc ?y
+                                  WHERE {
+                                   ?x <http://purl.org/rss/1.0/items> ?items .
+                                   ?items ?arc ?y .}")))
+          (iter (for alist in-query-results (query-execute query))
+                (print alist)))))))
