@@ -169,4 +169,7 @@
            #:IN-REDLAND-STREAM
            #:IN-REDLAND-ITERATOR
            #:IN-MODEL
-           #:IN-QUERY-RESULTS))
+           #:IN-QUERY-RESULTS
+           #:model-enumerate
+           #:parser-enumerate
+           #:get-all-enumerate))
