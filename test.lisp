@@ -51,9 +51,30 @@
     (with-storage ("hashes" "test" "hash-type='memory'")
       (with-model ()
         (model-load (make-uri "http://ramarren.blox.pl/rss2"))
-        (let ((query (make-query "SELECT ?items ?arc ?y
+        (let ((query (make-query "PREFIX rss: <http://purl.org/rss/1.0/>
+                                  SELECT ?title ?y
                                   WHERE {
-                                   ?x <http://purl.org/rss/1.0/items> ?items .
-                                   ?items ?arc ?y .}")))
+                                   ?x rss:items ?items .
+                                   ?items ?arc ?y .
+                                   ?y rss:title ?title}")))
+          (iter (for alist in-query-results (query-execute query))
+                (print alist)))))))
+
+(defun test-query-numop ()
+  (with-world (:log-function (make-log-everything *standard-output*))
+    (with-storage ("hashes" "test" "hash-type='memory'")
+      (with-model ()
+        (model-add-statement (make-statement-from-nodes
+                              (make-node-from-uri-string "http://ramarren.blox.pl")
+                              (make-node-from-uri-string "tag:visits-number")
+                              (make-node-from-typed-literal "42"
+                                                            :datatype-uri
+                                                            (make-uri "http://www.w3.org/2001/XMLSchema#integer"))))
+        (let ((query (make-query "PREFIX rss: <http://purl.org/rss/1.0/>
+                                  SELECT ?what ?num
+                                  WHERE {
+                                   ?what <tag:visits-number> ?num .
+                                   FILTER (?num > 23)}")))
+          (assert query)
           (iter (for alist in-query-results (query-execute query))
                 (print alist)))))))
