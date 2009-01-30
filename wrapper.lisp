@@ -45,7 +45,6 @@
 (defun maybe-free-pointer-array (arry type)
   (when (and (aref arry 0)
              (= (aref arry 2) *world-life*))
-    (print type)
     (setf (aref arry 0) nil)
     (free-object (aref arry 1) type)
     (setf (aref arry 1) *null*)
