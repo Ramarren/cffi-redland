@@ -837,6 +837,11 @@
   (:method ((stream statement-stream))
     (wrap-shared-pointer (call-next-method) 'statement)))
 
+(defun make-stream-from-node-iterator (node-iterator statement field)
+  (wrap-pointer (%new-stream-from-node-iterator
+                 (get-pointer node-iterator) (get-pointer statement) field)
+                'statement-stream))
+
 ;;; URI
 
 (defun make-uri (uri-string &optional (world *world*))
