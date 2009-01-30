@@ -1,4 +1,4 @@
-# CFFI bindings for [Redland](url=http://librdf.org/docs/api/index.html) RDF Library.
+# CFFI bindings for [Redland](http://librdf.org/docs/api/index.html) RDF Library.
 
 ## Dependencies
 
