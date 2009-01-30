@@ -6,9 +6,11 @@
 ;;; objects seem to have not easily delimited lifetime
 
 (defparameter *null* (null-pointer))
+(defvar *world-life* 0)
+
 
 (defclass pointer-wrapper ()
-  ((pointer :initform (make-array 2 :initial-contents (list nil *null*))
+  ((pointer :initform (make-array 3 :initial-contents (list nil *null* *world-life*))
             :initarg :pointer-array
             :accessor pointer-array)
    (type :initform nil
@@ -17,7 +19,10 @@
 
 (defun free-object (pointer type)
   (ecase type
-    (world (%free-world pointer))
+    (world
+       (gc :full t)
+       (incf *world-life*)
+       (%free-world pointer))
     (node (%free-node pointer))
     (statement (%free-statement pointer))
     (uri (%free-uri pointer))
@@ -50,7 +55,7 @@
 
 (defun wrap-shared-pointer (pointer type)
   (make-instance type
-                 :pointer-array (make-array 2 :initial-contents (list nil pointer))
+                 :pointer-array (make-array 3 :initial-contents (list nil pointer *world-life*))
                  :type type))
 
 (defun wrap-pointer (pointer type)
