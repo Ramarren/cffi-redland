@@ -78,3 +78,23 @@
           (assert query)
           (iter (for alist in-query-results (query-execute query))
                 (print alist)))))))
+
+(defun test-query-context ()
+  (with-world (:log-function (make-log-everything *standard-output*))
+    (with-storage ("hashes" "test" "hash-type='memory',contexts='yes'")
+      (with-model ()
+        (model-context-add-statement (make-node-from-uri-string "http://ramarren.homelinux.net/test-context/")
+                                     (make-statement-from-nodes
+                                      (make-node-from-uri-string "http://ramarren.blox.pl")
+                                      (make-node-from-uri-string "tag:visits-number")
+                                      (make-node-from-typed-literal "42"
+                                                                    :datatype-uri
+                                                                    (make-uri "http://www.w3.org/2001/XMLSchema#integer"))))
+        (let ((query (make-query "PREFIX rss: <http://purl.org/rss/1.0/>
+                                  SELECT ?what ?num ?g
+                                  WHERE {
+                                   FILTER (?num > 23) .
+                                   GRAPH ?g {?what <tag:visits-number> ?num}}")))
+          (assert query)
+          (iter (for alist in-query-results (query-execute query))
+                (print alist)))))))
