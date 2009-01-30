@@ -13,6 +13,8 @@ The low-level bindings are partially written by hand and parially automatically 
 
 Mid level bindings, wrapping all Redland objects with CLOS objects are somewhat complete. They are fairly raw, mostly handling wrapping/unwrapping pointers. They are pretty close to C functions, so Redland API reference can be used as documentation.
 
+There are no mid-level bindings for hashes and lists. CL has pretty good versions of those already.
+
 There are drivers for ITERATE, for Redland streams, iterators, models and query-results. Note that iteration object is shared and has to be copied to be used outside the loop.
 
 Low-level bindings are unexported symbols prefixed with `%`. Mid-level bindings are exported. There are some minimal tests in `test.lisp`.
