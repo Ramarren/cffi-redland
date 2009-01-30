@@ -29,6 +29,7 @@
     (model (%free-model pointer))
     (storage (%free-storage pointer))
     (parser (%free-parser pointer))
+    (serializer (%free-serializer pointer))
     (iterator (%free-iterator pointer))
     (node-iterator (%free-iterator pointer))
     (statement-iterator (%free-iterator pointer))
@@ -38,10 +39,13 @@
     (node-stream (%free-stream pointer))
     (statement-stream (%free-stream pointer))
     (query (%free-query pointer))
-    (query-results (%free-query-results pointer))))
+    (query-results (%free-query-results pointer))
+    (query-results-formatter (%free-query-results-formatter pointer))))
 
 (defun maybe-free-pointer-array (arry type)
-  (when (aref arry 0)
+  (when (and (aref arry 0)
+             (= (aref arry 2) *world-life*))
+    (print type)
     (setf (aref arry 0) nil)
     (free-object (aref arry 1) type)
     (setf (aref arry 1) *null*)
@@ -150,6 +154,9 @@
 (defclass query-results (pointer-wrapper)
   ())
 
+(defclass query-results-formatter (pointer-wrapper)
+  ())
+
 ;;; special variables
 (defvar *world* nil)
 (defvar *storage* nil)
@@ -165,15 +172,61 @@
 (defun world-open (&optional (world *world*))
   (%world-open (get-pointer world)))
 
-(defmacro with-world (&body body)
+(defmacro with-world ((&key (log-function '*log-function*)) &body body)
   `(let ((*world* (make-world)))
-     (unwind-protect
-          (progn ,@body)
-       (free-pointer *world*))))
+     (with-log-function (,log-function)
+       (unwind-protect
+            (progn ,@body)
+         (free-pointer *world*)))))
 
-;;; TODO add lispified logging 
-;;; TODO ignore digest for now
-;;; TODO ignore features (what are those anyway?)
+;;; logging support, with dynamic scope... this doesn't allow multiple worlds loggers, but would it?
+
+(defvar *log-function* (constantly nil))
+
+(defcallback log-callback :int
+    ((user-data :pointer) (message message-pointer))
+  (declare (ignore user-data))
+  (if (funcall *log-function*
+               :code (%log-message-code message)
+               :level (%log-message-level message)
+               :from (%log-message-facility message)
+               :message (%log-message-message message))
+      1 0))
+
+(defun make-log-everything (stream)
+  #'(lambda (&key code level from message)
+      (format stream "Received log message code ~a level ~a from ~a: ~a"
+              code level from message)))
+
+(defun set-log-function (log-function &optional (world *world*))
+  (assert world)
+  (setf *log-function* log-function)
+  (%world-set-logger (get-pointer world) *null* (callback log-callback))
+  (values))
+
+(defmacro with-log-function ((log-function &optional (world '*world*)) &body body)
+  `(let ((*log-function* ,log-function))
+     (%world-set-logger (get-pointer ,world) *null* (callback log-callback))
+     ,@body))
+
+(defmacro with-logging ((stream &optional (world '*world*)) &body body)
+  `(let ((*log-function* (make-log-everything ,stream)))
+     (%world-set-logger (get-pointer ,world) *null* (callback log-callback))
+     ,@body))
+
+(defun world-set-digest (name &optional (world *world*))
+  (%world-set-digest (get-pointer world) name)
+  (values))
+
+(defun world-get-feature (world feature)
+  (wrap-pointer (%world-get-feature (get-pointer world) (get-pointer feature)) 'node))
+
+(defun world-set-feature (world feature value)
+  (let ((result (%world-set-feature (get-pointer world) (get-pointer feature)
+                                    (get-pointer value))))
+    (cond ((plusp result) :failure)
+          ((zerop result) t)
+          ((minusp result) :no-such-feature))))
 
 ;;; concepts
 
@@ -216,9 +269,9 @@
   (:method ((iterator iterator))
     (%iterator-get-object (get-pointer iterator)))
   (:method ((iterator node-iterator))
-    (wrap-pointer (call-next-method) 'node))
+    (wrap-shared-pointer (call-next-method) 'node))
   (:method ((iterator statement-iterator))
-    (wrap-pointer (call-next-method) 'statement)))
+    (wrap-shared-pointer (call-next-method) 'statement)))
 
 ;;; TODO List
 ;;; I don't think they even come from anywhere?
@@ -232,7 +285,7 @@
 (defun make-model (&key (world *world*) (storage *storage*) (options *null*))
   (wrap-pointer (%new-model (get-pointer world) (get-pointer storage) options) 'model))
 
-(defmacro with-model ((&key (world *world*) (storage *storage*) (options *null*)) &body body)
+(defmacro with-model ((&key (world '*world*) (storage '*storage*) (options '*null*)) &body body)
   `(let ((*model* (make-model :world ,world :storage ,storage :options ,options)))
      (unwind-protect (progn ,@body)
        (free-pointer *model*))))
@@ -364,7 +417,15 @@
 (defun model-get-contexts (&optional (model *model*))
   (wrap-pointer (%model-get-contexts (get-pointer model)) 'node-iterator))
 
-;;; TODO: model features
+(defun model-get-feature (model feature)
+  (wrap-pointer (%model-get-feature (get-pointer model) (get-pointer feature)) 'node))
+
+(defun model-set-feature (model feature value)
+  (let ((result (%model-set-feature (get-pointer model) (get-pointer feature)
+                                    (get-pointer value))))
+    (cond ((plusp result) :failure)
+          ((zerop result) t)
+          ((minusp result) :no-such-feature))))
 
 (defun model-transaction-commit (&optional (model *model*))
   (zerop (%model-transaction-commit (get-pointer model))))
@@ -473,9 +534,182 @@
                                    (get-pointer base-uri)
                                    (get-pointer model))))
 
+(defun parser-get-feature (parser feature)
+  (wrap-pointer (%parser-get-feature (get-pointer parser) (get-pointer feature)) 'node))
+
+(defun parser-set-feature (parser feature value)
+  (let ((result (%parser-set-feature (get-pointer parser) (get-pointer feature)
+                                    (get-pointer value))))
+    (cond ((plusp result) :failure)
+          ((zerop result) t)
+          ((minusp result) :no-such-feature))))
+
 ;;; skipping namespaces
 
-;;; TODO: Query/Query result/Serialization
+;;; Query
+
+(defun make-query (query-string &key (world *world*) (name "SPARQL") (uri *null*) (base-uri *null*))
+  (wrap-pointer (%new-query (get-pointer world)
+                            name (get-pointer uri)
+                            query-string (get-pointer base-uri))
+                'query))
+
+(defun copy-query (old-query)
+  (wrap-pointer (%new-query-from-query (get-pointer old-query)) 'query))
+
+(defun query-execute (query &optional (model *model*))
+  (wrap-pointer (%query-execute (get-pointer query) (get-pointer model)) 'query-result))
+
+(defun query-get-limit (query)
+  (%query-get-limit (get-pointer query)))
+
+(defun query-set-limit (query limit)
+  (zerop (%query-set-limit (get-pointer query) limit)))
+
+(defun query-get-offset (query)
+  (%query-get-offset (get-pointer query)))
+
+(defun query-set-offset (query offset)
+  (zerop (%query-set-offset (get-pointer query) offset)))
+
+;;; Query results
+
+(defun query-results-as-stream (query-results)
+  (assert (not (zerop (%query-results-is-graph (get-pointer query-results)))))
+  (wrap-pointer (%query-results-as-stream (get-pointer query-results)) 'statement-stream))
+
+(defun query-results-get-count (query-results)
+  (%query-results-get-count (get-pointer query-results)))
+
+(defun query-results-next (query-results)
+  (zerop (%query-results-next (get-pointer query-results))))
+
+(defun query-results-finished (query-results)
+  (not (zerop (%query-results-finished (get-pointer query-results)))))
+
+(defun query-results-get-bindings (query-results)
+  (assert (not (zerop (%query-results-is-bindings (get-pointer query-results)))))
+  (unless (query-results-finished query-results)
+    (let ((bindings-count (query-results-get-bindings-count query-results)))
+      (with-foreign-objects ((names :pointer)
+                             (values :pointer))
+        (%query-results-get-bindings (get-pointer query-results) names values)
+        (iter (with name-array = (mem-ref names :pointer))
+              (with value-array = (mem-ref values :pointer))
+              (for i below bindings-count)
+              (collect (cons (foreign-string-to-lisp (mem-aref name-array :pointer i))
+                             (wrap-pointer (mem-aref value-array :pointer i) 'node))))))))
+
+(defun query-results-get-binding-value (query-results offset)
+  (assert (not (zerop (%query-results-is-bindings (get-pointer query-results)))))
+  (wrap-pointer (%query-results-get-binding-value (get-pointer query-results) offset) 'node))
+
+(defun query-results-get-binding-name (query-results offset)
+  (assert (not (zerop (%query-results-is-bindings (get-pointer query-results)))))
+  (%query-results-get-binding-name (get-pointer query-results) offset))
+
+(defun query-results-get-binding-value-by-name (query-results name)
+  (assert (not (zerop (%query-results-is-bindings (get-pointer query-results)))))
+  (wrap-pointer (%query-results-get-binding-value-by-name (get-pointer query-results) name) 'node))
+
+(defun query-results-get-bindings-count (query-results)
+  (%query-results-get-bindings-count (get-pointer query-results)))
+
+(defun query-results-to-string (query-results format-uri &optional (base-uri *null*))
+  (%query-results-to-string (get-pointer query-results) (get-pointer format-uri) (get-pointer base-uri)))
+
+(defun query-results-to-file (query-results name format-uri &optional (base-uri *null*))
+  (%query-results-to-file (get-pointer query-results) (namestring name)
+                          (get-pointer format-uri) (get-pointer base-uri)))
+
+(defun query-results-is-bindings-p (query-results)
+  (not (zerop (%query-results-is-bindings (get-pointer query-results)))))
+
+(defun query-results-is-boolean-p (query-results)
+  (not (zerop (%query-results-is-boolean (get-pointer query-results)))))
+
+(defun query-results-is-graph-p (query-results)
+  (not (zerop (%query-results-is-graph (get-pointer query-results)))))
+
+(defun query-results-is-syntax-p (query-results)
+  (not (zerop (%query-results-is-syntax (get-pointer query-results)))))
+
+(defun query-results-get-boolean (query-results)
+  (let ((result (%query-results-get-boolean query-results)))
+    (cond ((> result 0) t)
+          ((= result 0) nil)
+          ((< result 0) :error-or-finished))))
+
+(defun make-query-results-formatter (query-results &key (name *null*) (uri *null*))
+  (wrap-pointer (%new-query-results-formatter (get-pointer query-results)
+                                              name
+                                              (get-pointer uri))
+                'query-results-formatter))
+
+(defun make-query-results-formatter-by-mime-type (query-results mime-type)
+  (wrap-pointer (%new-query-results-formatter-by-mime-type (get-pointer query-results)
+                                                           mime-type)
+                'query-results-formatter))
+
+(defun query-results-format-check (mime-type &key (name *null*) (uri *null*) (world *world*))
+  (%query-results-formats-check (get-pointer world) name
+                                (get-pointer uri) mime-type))
+
+(defun query-results-formats-enumerate (counter &optional (world *world*))
+  (with-foreign-objects ((name :pointer)
+                         (label :pointer)
+                         (uri-string :pointer)
+                         (mime-type :pointer))
+    (let ((retval (%query-results-formats-enumerate (get-pointer world) counter name label uri-string mime-type)))
+      (when (zerop retval)
+        (list (foreign-string-to-lisp (mem-ref name :pointer))
+              (foreign-string-to-lisp (mem-ref label :pointer))
+              (foreign-string-to-lisp (mem-ref uri-string :pointer))
+              (foreign-string-to-lisp (mem-ref mime-type :pointer)))))))
+
+;;; Serialization
+
+(defun serializer-enumerate (counter &optional (world *world*))
+  (with-foreign-objects ((name :pointer)
+                         (label :pointer))
+    (let ((retval (%serializer-enumerate (get-pointer world) counter name label)))
+      (when (zerop retval)
+        (list (foreign-string-to-lisp (mem-ref name :pointer))
+              (foreign-string-to-lisp (mem-ref label :pointer)))))))
+
+(defun make-serializer (name &key (world *world*) (mime-type *null*) (type-uri *null*))
+  (wrap-pointer (%new-serializer (get-pointer world) name mime-type (get-pointer type-uri)) 'serializer))
+
+(defun serialize-model-to-file (serializer name &key (base-uri *null*) (model *model*))
+  (zerop (%serializer-serialize-model-to-file (get-pointer serializer) name
+                                              (get-pointer base-uri) (get-pointer model))))
+
+(defun serialize-model-to-string (serializer &key (base-uri *null*) (model *model*))
+  (%serializer-serialize-model-to-string (get-pointer serializer)
+                                         (get-pointer base-uri) (get-pointer model)))
+
+(defun serialize-stream-to-file (serializer name stream &key (base-uri *null*))
+  (zerop (%serializer-serialize-stream-to-file (get-pointer serializer) name
+                                               (get-pointer base-uri) (get-pointer stream))))
+
+(defun serialize-stream-to-string (serializer stream &key (base-uri *null*))
+  (%serializer-serialize-stream-to-string (get-pointer serializer)
+                                          (get-pointer base-uri) (get-pointer stream)))
+
+(defun serializer-get-feature (serializer feature)
+  (wrap-pointer (%serializer-get-feature (get-pointer serializer) (get-pointer feature)) 'node))
+
+(defun serializer-set-feature (serializer feature value)
+  (let ((result (%serializer-set-feature (get-pointer serializer) (get-pointer feature)
+                                         (get-pointer value))))
+    (cond ((plusp result) :failure)
+          ((zerop result) t)
+          ((minusp result) :no-such-feature))))
+
+(defun serilizer-set-namespace (serializer uri prefix)
+  (zerop (%serializer-set-namespace (get-pointer serializer)
+                                    (get-pointer uri)
+                                    prefix)))
 
 ;;; Statement
 
@@ -542,7 +776,7 @@
   (wrap-pointer (%new-storage (get-pointer world)
                               storage-name name options) 'storage))
 
-(defmacro with-storage ((storage-name name options &optional (world *world*)) &body body)
+(defmacro with-storage ((storage-name name options &optional (world '*world*)) &body body)
   `(let ((*storage* (make-storage ,storage-name ,name ,options ,world)))
      (unwind-protect (progn ,@body)
        (free-pointer *storage*))))
@@ -551,6 +785,16 @@
 
 (defun copy-storage (old-storage)
   (wrap-pointer (%new-storage-from-storage (get-pointer old-storage)) 'storage))
+
+(defun storage-get-feature (storage feature)
+  (wrap-pointer (%storage-get-feature (get-pointer storage) (get-pointer feature)) 'node))
+
+(defun storage-set-feature (storage feature value)
+  (let ((result (%storage-set-feature (get-pointer storage) (get-pointer feature)
+                                    (get-pointer value))))
+    (cond ((plusp result) :failure)
+          ((zerop result) t)
+          ((minusp result) :no-such-feature))))
 
 ;;; Streams
 
@@ -566,9 +810,9 @@
   (:method ((stream redland-stream))
     (%stream-get-object (get-pointer stream)))
   (:method ((stream node-stream))
-    (wrap-pointer (call-next-method) 'node))
+    (wrap-shared-pointer (call-next-method) 'node))
   (:method ((stream statement-stream))
-    (wrap-pointer (call-next-method) 'statement)))
+    (wrap-shared-pointer (call-next-method) 'statement)))
 
 ;;; URI
 
