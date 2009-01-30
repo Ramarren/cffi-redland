@@ -779,7 +779,7 @@
   (world world-pointer)
   (name :string)
   (uri uri-pointer)
-  (query-string :pointer)
+  (query-string :string)
   (base-uri uri-pointer))
 
 (defcfun (%new-query-from-query "librdf_new_query_from_query") query-pointer
