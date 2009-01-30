@@ -99,21 +99,27 @@
 
 (defmethod print-object ((node node) stream)
   (print-unreadable-object (node stream :type t :identity nil)
-    (princ (%node-to-string (get-pointer node)) stream)))
+    (if (= (aref (pointer-array node) 2) *world-life*)
+        (princ (%node-to-string (get-pointer node)) stream)
+        (princ 'invalid stream))))
 
 (defclass statement (pointer-wrapper)
   ())
 
 (defmethod print-object ((statement statement) stream)
   (print-unreadable-object (statement stream :type t :identity nil)
-    (princ (%statement-to-string (get-pointer statement)) stream)))
+    (if (= (aref (pointer-array statement) 2) *world-life*)
+        (princ (%statement-to-string (get-pointer statement)) stream)
+        (princ 'invalid stream))))
 
 (defclass uri (pointer-wrapper)
   ())
 
 (defmethod print-object ((uri uri) stream)
   (print-unreadable-object (uri stream :type t :identity nil)
-    (princ (%uri-to-string (get-pointer uri)) stream)))
+    (if (= (aref (pointer-array uri) 2) *world-life*)
+        (princ (%uri-to-string (get-pointer uri)) stream)
+        (princ 'invalid stream))))
 
 (defclass parser (pointer-wrapper)
   ())
@@ -548,7 +554,7 @@
 
 ;;; Query
 
-(defun make-query (query-string &key (world *world*) (name "SPARQL") (uri *null*) (base-uri *null*))
+(defun make-query (query-string &key (world *world*) (name "sparql") (uri *null*) (base-uri *null*))
   (wrap-pointer (%new-query (get-pointer world)
                             name (get-pointer uri)
                             query-string (get-pointer base-uri))
@@ -558,7 +564,7 @@
   (wrap-pointer (%new-query-from-query (get-pointer old-query)) 'query))
 
 (defun query-execute (query &optional (model *model*))
-  (wrap-pointer (%query-execute (get-pointer query) (get-pointer model)) 'query-result))
+  (wrap-pointer (%query-execute (get-pointer query) (get-pointer model)) 'query-results))
 
 (defun query-get-limit (query)
   (%query-get-limit (get-pointer query)))
@@ -591,14 +597,15 @@
   (assert (not (zerop (%query-results-is-bindings (get-pointer query-results)))))
   (unless (query-results-finished query-results)
     (let ((bindings-count (query-results-get-bindings-count query-results)))
-      (with-foreign-objects ((names :pointer)
-                             (values :pointer))
-        (%query-results-get-bindings (get-pointer query-results) names values)
-        (iter (with name-array = (mem-ref names :pointer))
-              (with value-array = (mem-ref values :pointer))
-              (for i below bindings-count)
-              (collect (cons (foreign-string-to-lisp (mem-aref name-array :pointer i))
-                             (wrap-pointer (mem-aref value-array :pointer i) 'node))))))))
+      (with-foreign-pointer (names (foreign-type-size :pointer))
+        (with-foreign-objects ((values :pointer bindings-count))
+          (let ((ret-code (%query-results-get-bindings (get-pointer query-results) names values)))
+            (assert (zerop ret-code)))
+          (iter (with name-array = (mem-ref names :pointer))
+                (for i below bindings-count)
+                (collect (cons (foreign-string-to-lisp (mem-aref name-array :pointer i))
+                               (wrap-pointer (mem-aref values :pointer i)
+                                             'node)))))))))
 
 (defun query-results-get-binding-value (query-results offset)
   (assert (not (zerop (%query-results-is-bindings (get-pointer query-results)))))
