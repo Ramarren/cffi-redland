@@ -7,7 +7,7 @@
     `(progn
        (with ,str = ,redland-stream)
        (with ,first = t)
-       (,kwd ,var next (progn 
+       (,kwd ,var next (progn
                          (if ,first
                              (setf ,first nil)
                              (stream-next ,str))
@@ -21,7 +21,7 @@
     `(progn
        (with ,itr = ,redland-iterator)
        (with ,first = t)
-       (,kwd ,var next (progn 
+       (,kwd ,var next (progn
                          (if ,first
                              (setf ,first nil)
                              (iterator-next ,itr))
@@ -41,7 +41,7 @@
     `(progn
        (with ,qr = ,query-results)
        (with ,first = t)
-       (,kwd ,var next (progn 
+       (,kwd ,var next (progn
                          (if ,first
                              (setf ,first nil)
                              (query-results-next ,qr))

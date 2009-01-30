@@ -178,7 +178,8 @@
   (%world-open (get-pointer world)))
 
 (defmacro with-world ((&key (log-function '*log-function*)) &body body)
-  `(let ((*world* (make-world)))
+  `(let ((*world* (make-world))
+         (*world-life* (1- (incf *world-life*))))
      (with-log-function (,log-function)
        (unwind-protect
             (progn ,@body)
