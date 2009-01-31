@@ -5,6 +5,22 @@
 
 ;;; Types
 
+(define-foreign-type new-string ()
+  ()
+  (:actual-type :pointer))
+
+(define-parse-method new-string ()
+  (make-instance 'new-string))
+
+(defmethod translate-from-foreign (value (type (eql 'new-string)))
+  (prog1
+      (unless (null-pointer-p value)
+        (foreign-string-to-lisp value))
+    (foreign-string-free value)))
+
+(defmethod translate-to-foreign (value (type (eql 'new-string)))
+  (foreign-string-alloc value))
+
 (defctype world-pointer :pointer "Pointer to Redland world class")
 (defctype node-pointer :pointer "Pointer to Redland node class")
 (defctype uri-pointer :pointer "Pointer to Redland URI class")
@@ -12,7 +28,6 @@
 (defctype digest-factory-pointer :pointer "Pointer to Redland digest factory class")
 (defctype hash-pointer :pointer "Pointer to Redland hash class")
 (defctype hash-cursor-pointer :pointer "Pointer to Redland hash cursor class")
-(defctype new-string :pointer "String in newly allocated memory")
 (defctype iterator-pointer :pointer "Pointer to Redland iterator class")
 (defctype list-pointer :pointer "Pointer to Redland list class")
 (defctype model-pointer :pointer "Pointer to Redland model class")
@@ -31,12 +46,6 @@
 (defctype serializer-pointer :pointer)
 (defctype serializer-factory-pointer :pointer)
 (defctype message-pointer :pointer)
-
-(defmethod translate-from-foreign (value (type (eql 'new-string)))
-  (prog1
-      (unless (null-pointer-p value)
-        (foreign-string-to-lisp value))
-    (foreign-string-free value)))
 
 ;;; World
 
@@ -645,7 +654,7 @@
   (buffer :pointer)
   (length size-t))
 
-(defcfun (%node-to-string "librdf_node_to_string") :string
+(defcfun (%node-to-string "librdf_node_to_string") new-string
   (node node-pointer))
 
 (defcfun (%node-to-counted-string "librdf_node_to_counted_string") :string
@@ -677,7 +686,7 @@
   (world world-pointer)
   (mime-type :string)
   (buffer :pointer)
-  (identifier :pointer))
+  (identifier :string))
 
 (defcfun (%new-parser "librdf_new_parser") parser-pointer
   (world world-pointer)
