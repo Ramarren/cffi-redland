@@ -98,3 +98,17 @@
           (assert query)
           (iter (for alist in-query-results (query-execute query))
                 (print alist)))))))
+
+(defun test-do-query ()
+  (with-world (:log-function (make-log-everything *standard-output*))
+    (with-storage ("hashes" "test" "hash-type='memory'")
+      (with-model ()
+        (model-load (make-uri "http://ramarren.blox.pl/rss2"))
+        (let ((query (make-query "PREFIX rss: <http://purl.org/rss/1.0/>
+                                  SELECT ?title ?y
+                                  WHERE {
+                                   ?x rss:items ?items .
+                                   ?items ?arc ?y .
+                                   ?y rss:title ?title}")))
+          (do-query query (y title)
+            (format t "~a ~a~&" y title)))))))

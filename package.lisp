@@ -172,4 +172,10 @@
            #:IN-QUERY-RESULTS
            #:model-enumerate
            #:parser-enumerate
-           #:get-all-enumerate))
+           #:get-all-enumerate
+           #:redland-error
+           #:redland-construction-error
+           #:redland-feature-error
+           #:redland-statement-add-error
+           #:redland-transaction-error
+           #:do-query))

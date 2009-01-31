@@ -13,4 +13,5 @@
                (cffi-grovel:grovel-file "redland-grovel" :depends-on ("package"))
                (:file "bindings" :depends-on ("package" "redland-grovel" "libraries"))
                (:file "wrapper" :depends-on ("package" "bindings"))
-               (:file "redland-iterate" :depends-on ("package" "wrapper"))))
+               (:file "redland-iterate" :depends-on ("package" "wrapper"))
+               (:file "do-query" :depends-on ("package" "wrapper"))))
