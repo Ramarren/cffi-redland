@@ -78,12 +78,45 @@
 
 (defun filter (filter)
   (with-output-to-string (stream)
-    (princ "FILTER (" stream)
-    (princ filter stream)
-    (princ ") " stream)))
+    (princ "FILTER " stream)
+    (princ (build-filter-expression filter) stream)))
 
 (defun graph (graph body)
   (with-output-to-string (stream)
     (princ "GRAPH " stream)
     (princ-terminal graph stream)
     (princ body stream)))
+
+;;; build filter expression
+
+;;; pattern matching would help, but don't want to draw in more dependencies
+(defun build-filter-expression (filter-expression)
+  (with-output-to-string (stream)
+    (labels ((p (&rest args)
+               (iter (for a in args)
+                     (princ a stream))))
+      (if (atom filter-expression)
+          (princ-terminal filter-expression stream)
+          (let ((args (mapcar #'build-filter-expression (cdr filter-expression))))
+                  (p "(")
+            (ecase (car filter-expression)
+              (not (p "! " (car args)))
+              (+ (if (= (length args) 1)
+                     (p "+ " (car args))
+                     (iter (for (a . e) on args)
+                           (if e (p a " + ") (p a)))))
+              (- (if (= (length args) 1)
+                     (p "- " (car args))
+                     (iter (for (a . e) on args)
+                           (if e (p a " - ") (p a)))))
+              (* (iter (for (a . e) on args)
+                       (if e (p a " * ") (p a))))
+              (/ (iter (for (a . e) on args)
+                       (if e (p a " / ") (p a))))
+              ((> < >= <= = !=)
+                 (p (car args) " "
+                    (symbol-name (car filter-expression)) " "
+                    (cadr args)))
+              (or (p (car args) " || " (cadr args)))
+              (and (p (car args) " && " (cadr args))))
+            (p ")"))))))
