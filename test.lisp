@@ -112,3 +112,18 @@
                                    ?y rss:title ?title}")))
           (do-query query (y title)
             (format t "~a ~a~&" y title)))))))
+
+(defun test-sparql ()
+  (with-world (:log-function (make-log-everything *standard-output*))
+    (with-storage ("hashes" "test" "hash-type='memory'")
+      (with-model ()
+        (model-load (make-uri "http://ramarren.blox.pl/rss2"))
+        (let ((query (make-query
+                      (prefix `(("rss:" ,(make-uri "http://purl.org/rss/1.0/")))
+                              (select '(title y)
+                                      (group (triple 'x "rss:items" 'items)
+                                             (triple 'items 'arc 'y)
+                                             (triple 'y "rss:title" 'title))
+                                      :distinct t)))))
+          (do-query query (y title)
+            (format t "~a ~a~&" y title)))))))
