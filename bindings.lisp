@@ -12,13 +12,13 @@
 (define-parse-method new-string ()
   (make-instance 'new-string))
 
-(defmethod translate-from-foreign (value (type (eql 'new-string)))
+(defmethod translate-from-foreign (value (type new-string))
   (prog1
       (unless (null-pointer-p value)
         (foreign-string-to-lisp value))
     (foreign-string-free value)))
 
-(defmethod translate-to-foreign (value (type (eql 'new-string)))
+(defmethod translate-to-foreign (value (type new-string))
   (foreign-string-alloc value))
 
 (defctype world-pointer :pointer "Pointer to Redland world class")
