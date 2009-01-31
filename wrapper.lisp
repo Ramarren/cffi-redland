@@ -175,6 +175,23 @@
          :format-control "Failed to construct ~a"
          :format-arguments (list what)))
 
+(define-condition redland-feature-error (redland-error)
+  ((exists :reader exists :initarg :exists)))
+
+(defun signal-feature-error (what feature exists)
+  (error 'redland-feature-error
+         :exists exists
+         :format-control (if exists
+                             "Failed to set feature ~a of ~a"
+                             "There is no feature ~a in ~a")
+         :format-arguments (list feature what)))
+
+(define-condition redland-statement-add-error (redland-error)
+  ())
+
+(define-condition redland-transaction-error (redland-error)
+  ())
+
 ;;; special variables
 (defvar *world* nil)
 (defvar *storage* nil)
@@ -185,7 +202,10 @@
 ;;; constructor and with- macros
 
 (defun make-world ()
-  (wrap-pointer (%new-world) 'world))
+  (let ((new-world (%new-world)))
+    (if (null-pointer-p new-world)
+        (signal-construction-error 'world)
+        (wrap-pointer new-world 'world))))
 
 (defun world-open (&optional (world *world*))
   (%world-open (get-pointer world)))
@@ -243,17 +263,26 @@
 (defun world-set-feature (world feature value)
   (let ((result (%world-set-feature (get-pointer world) (get-pointer feature)
                                     (get-pointer value))))
-    (cond ((plusp result) :failure)
+    (cond ((plusp result) (signal-feature-error world feature t))
           ((zerop result) t)
-          ((minusp result) :no-such-feature))))
+          ((minusp result) (signal-feature-error world feature nil)))))
 
 ;;; concepts
 
 (defun get-concept-resource (concept &optional (world *world*))
-  (wrap-shared-pointer (%get-concept-resource-by-index (get-pointer world) concept) 'node))
+  (let ((resource (%get-concept-resource-by-index (get-pointer world) concept)))
+    (if resource
+        (wrap-shared-pointer resource 'node)
+        (error 'redland-error :format-control "Can't find concept resource for ~a"
+            :format-arguments (list concept)))))
 
 (defun get-concept-uri (concept &optional (world *world*))
-  (wrap-shared-pointer (%get-concept-uri-by-index (get-pointer world) concept) 'uri))
+  (let ((uri (%get-concept-uri-by-index (get-pointer world) concept)))
+    (if uri
+        (wrap-shared-pointer uri 'uri)
+        (error 'redland-error
+               :format-control "Can't find concept uri for ~a"
+               :format-arguments (list uri)))))
 
 ;;; TODO ignore digests for now
 
@@ -262,10 +291,13 @@
 ;;; Heuristics
 
 (defun gen-name (base-name)
-  (%heuristic-gen-name base-name))
+  (let ((new-name (%heuristic-gen-name base-name)))
+    (if new-name new-name
+        (error 'redland-error :format-control "Failed to make a new name from ~a"
+               :format-arguments (list base-name)))))
 
 (defun is-blank-node (node-name)
-  (%heuristic-is-blank-node node-name))
+  (not (zerop (%heuristic-is-blank-node node-name))))
 
 (defun get-blank-node (node-string)
   (%heuristic-get-blank-node node-string))
@@ -295,9 +327,6 @@
 ;;; TODO List
 ;;; I don't think they even come from anywhere?
 
-;;; TODO Logging
-;;; as above, message decomposition suppoer
-
 ;;; Model
 ;;; dropping less comprehensible functions
 
@@ -310,7 +339,10 @@
               (foreign-string-to-lisp (mem-ref label :pointer)))))))
 
 (defun make-model (&key (world *world*) (storage *storage*) (options *null*))
-  (wrap-pointer (%new-model (get-pointer world) (get-pointer storage) options) 'model))
+  (let ((new-model (%new-model (get-pointer world) (get-pointer storage) options)))
+    (if (null-pointer-p new-model)
+        (signal-construction-error 'model)
+        (wrap-pointer new-model 'model))))
 
 (defmacro with-model ((&key (world '*world*) (storage '*storage*) (options '*null*)) &body body)
   `(let ((*model* (make-model :world ,world :storage ,storage :options ,options)))
@@ -318,44 +350,67 @@
        (free-pointer *model*))))
 
 (defun model-size (&optional (model *model*))
-  (%model-size (get-pointer model)))
+  (let ((size (%model-size (get-pointer model))))
+    (unless (minusp size)
+      size)))
 
 (defun model-add (subject predicate object &optional (model *model*))
   (unown-pointer subject)
   (unown-pointer predicate)
   (unown-pointer object)
-  (zerop (%model-add (get-pointer model) (get-pointer subject)
-                     (get-pointer predicate) (get-pointer object))))
+  (let ((ret-code (%model-add (get-pointer model) (get-pointer subject)
+                              (get-pointer predicate) (get-pointer object))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-statement-add-error))))
 
 (defun model-add-string-literal-statement (subject predicate literal
                                            &key (language *null*) (model *model*) (is-wf-xml nil))
   (unown-pointer subject)
   (unown-pointer predicate)
-  (zerop (%model-add-string-literal-statement (get-pointer model)
-                                              (get-pointer subject)
-                                              (get-pointer predicate)
-                                              literal
-                                              language
-                                              (if is-wf-xml 1 0))))
+  (let ((ret-code (%model-add-string-literal-statement (get-pointer model)
+                                                       (get-pointer subject)
+                                                       (get-pointer predicate)
+                                                       literal
+                                                       language
+                                                       (if is-wf-xml 1 0))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-statement-add-error))))
 
 (defun model-add-typed-literal-statement (subject predicate literal
                                           &key (model *model*) (language *null*) (datatype-uri *null*))
   (unown-pointer subject)
   (unown-pointer predicate)
-  (zerop (%model-add-typed-literal-statement (get-pointer model) (get-pointer subject)
-                                             (get-pointer predicate) literal language datatype-uri)))
+  (let ((ret-code (%model-add-typed-literal-statement (get-pointer model) (get-pointer subject)
+                                                      (get-pointer predicate) literal language datatype-uri)))
+    (if (zerop ret-code)
+        t
+        (error 'redland-statement-add-error))))
 
 (defun model-add-statement (statement &optional (model *model*))
-  (zerop (%model-add-statement (get-pointer model) (get-pointer statement))))
+  (let ((ret-code (%model-add-statement (get-pointer model) (get-pointer statement))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-statement-add-error))))
 
 (defun model-add-statements (stream &optional (model *model*))
-  (zerop (%model-add-statements (get-pointer model) (get-pointer stream))))
+  (let ((ret-code (%model-add-statements (get-pointer model) (get-pointer stream))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-statement-add-error))))
 
 (defun model-remove-statement (statement &optional (model *model*))
-  (zerop (%model-remove-statement (get-pointer model) (get-pointer statement))))
+  (let ((ret-code (%model-remove-statement (get-pointer model) (get-pointer statement))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-statement-add-error))))
 
 (defun model-contains-statement-p (statement &optional (model *model*))
-  (not (zerop (%model-contains-statement (get-pointer model) (get-pointer statement)))))
+  (let ((ret-val (%model-contains-statement (get-pointer model) (get-pointer statement))))
+    (cond ((> ret-val 0) (error 'redland-error :format-control "Invalid statement passed to model-contains-statement-p"))
+          ((zerop ret-val) nil)
+          ((< ret-val 0) t))))
 
 (defun model-has-arc-in (node property &optional (model *model*))
   (not (zerop (%model-has-arc-in (get-pointer model) (get-pointer node) (get-pointer property)))))
@@ -367,14 +422,21 @@
   (wrap-pointer (%model-as-stream (get-pointer model)) 'statement-stream))
 
 (defun model-find-statements (statement &optional (model *model*))
-  (wrap-pointer (%model-find-statements (get-pointer model) (get-pointer statement)) 'statement-stream))
+  (let ((stream (%model-find-statements (get-pointer model) (get-pointer statement))))
+    (if (null-pointer-p stream)
+        (error 'redland-error :format-control "Error in find-statements.")
+        (wrap-pointer stream 'statement-stream))))
 
 ;;; TODO: find with options, requires hashes above
 
 (defmacro define-get-function (what first second)
   `(defun ,(symbolicate 'model-get- what) (,first ,second &optional (model *model*))
-     (wrap-pointer (,(symbolicate '%model-get- what) (get-pointer model)
-                     (get-pointer ,first) (get-pointer ,second)) 'node-iterator)))
+     (let ((ret-val (,(symbolicate '%model-get- what) (get-pointer model)
+                      (get-pointer ,first) (get-pointer ,second))))
+       (if (null-pointer-p ret-val)
+           (error 'redland-error :format-control "Error in ~a retrieval function"
+                  :format-arguments (list ',what))
+           (wrap-pointer ret-val 'node-iterator)))))
 
 (define-get-function sources arc target)
 (define-get-function arcs source target)
@@ -382,51 +444,89 @@
 
 (defmacro define-single-get-function (what first second)
   `(defun ,(symbolicate 'model-get- what) (,first ,second &optional (model *model*))
-     (wrap-pointer (,(symbolicate '%model-get- what) (get-pointer model)
-                     (get-pointer ,first) (get-pointer ,second)) 'node)))
+     (let ((ret-val (,(symbolicate '%model-get- what) (get-pointer model)
+                      (get-pointer ,first) (get-pointer ,second))))
+       (if (null-pointer-p ret-val)
+           (error 'redland-error :format-control "Error in ~a retrieval function"
+                  :format-arguments (list ',what))
+           (wrap-pointer ret-val 'node)))))
 
 (define-single-get-function source arc target)
 (define-single-get-function arc source target)
 (define-single-get-function target source arc)
 
 (defun model-get-arcs-in (node &optional (model *model*))
-  (wrap-pointer (%model-get-arcs-in (get-pointer model) (get-pointer node)) 'node-iterator))
+  (let ((ret-val (%model-get-arcs-in (get-pointer model) (get-pointer node))))
+    (if (null-pointer-p ret-val)
+        (error 'redland-error :format-control "Error in get-arcs-in function.")
+        (wrap-pointer ret-val 'node-iterator))))
 
 (defun model-get-arcs-out (node &optional (model *model*))
-  (wrap-pointer (%model-get-arcs-out (get-pointer model) (get-pointer node)) 'node-iterator))
+  (let ((ret-val (%model-get-arcs-out (get-pointer model) (get-pointer node))))
+    (if (null-pointer-p ret-val)
+        (error 'redland-error :format-control "Error in get-arcs-in function.")
+        (wrap-pointer ret-val 'node-iterator))))
 
 ;;; submodels?
 ;;; print? how to handle FILE*, anyway?
 
 (defun model-context-add-statement (context statement &optional (model *model*))
-  (zerop (%model-context-add-statement (get-pointer model) (get-pointer context) (get-pointer statement))))
+  (let ((ret-code (%model-context-add-statement (get-pointer model) (get-pointer context) (get-pointer statement))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-statement-add-error))))
 
 (defun model-context-add-statements (context statements &optional (model *model*))
-  (zerop (%model-context-add-statements (get-pointer model) (get-pointer context) (get-pointer statements))))
+  (let ((ret-code (%model-context-add-statements (get-pointer model) (get-pointer context) (get-pointer statements))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-statement-add-error))))
 
 (defun model-context-remove-statement (context statement &optional (model *model*))
-  (zerop (%model-context-remove-statement (get-pointer model) (get-pointer context) (get-pointer statement))))
+  (let ((ret-code (%model-context-remove-statement (get-pointer model) (get-pointer context) (get-pointer statement))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-statement-add-error))))
 
 (defun model-context-remove-statements (context &optional (model *model*))
-  (zerop (%model-context-remove-statements (get-pointer model) (get-pointer context))))
+  (let ((ret-code (%model-context-remove-statements (get-pointer model) (get-pointer context))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-statement-add-error))))
 
 (defun model-context-as-stream (context &optional (model *model*))
-  (wrap-pointer (%model-context-as-stream (get-pointer model) (get-pointer context)) 'statement-stream))
+  (let ((ret-val (%model-context-as-stream (get-pointer model) (get-pointer context))))
+    (if (null-pointer-p ret-val)
+        (error 'redland-error :format-control "Error in model-context-as-stream function.")
+        (wrap-pointer  'statement-stream))))
 
 (defun model-contains-context (context &optional (model *model*))
   (not (zerop (%model-contains-context (get-pointer model) (get-pointer context)))))
 
 (defun model-query-execute (query &optional (model *model*))
-  (wrap-pointer (%model-query-execute (get-pointer model) (get-pointer query)) 'query-results))
+  (let ((ret-val (%model-query-execute (get-pointer model) (get-pointer query))))
+    (if (null-pointer-p ret-val)
+        (error 'redland-error :format-control "Error in model-query-execute function.")
+        (wrap-pointer  'query-results))))
 
 (defun model-sync (&optional (model *model*))
-  (%model-sync (get-pointer model)))
+  (let ((ret-code (%model-sync (get-pointer model))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-error :format-control "Failed to sync model to storage."))))
 
 (defun model-get-storage (&optional (model *model*))
   (wrap-pointer (%model-get-storage (get-pointer model)) 'storage))
 
 (defun model-load (uri &key (model *model*) (name *null*) (mime-type *null*) (type-uri *null*))
-  (zerop (%model-load (get-pointer model) (get-pointer uri) name mime-type (get-pointer type-uri))))
+  (let ((uri-object (if (stringp uri)
+                        (make-uri uri)
+                        uri)))
+    (let ((ret-code (%model-load (get-pointer model) (get-pointer uri-object) name mime-type (get-pointer type-uri))))
+      (if (zerop ret-code)
+          t
+          (error 'redland-error :format-control "Failed to load model from ~a"
+                 :format-arguments (list uri))))))
 
 ;;; TODO: model to counted string
 
@@ -436,13 +536,18 @@
                     mime-type (get-pointer type-uri)))
 
 (defun model-find-statements-in-context (statement context &optional (model *model*))
-  (wrap-pointer (%model-find-statements-in-context (get-pointer model)
-                                                   (get-pointer statement)
-                                                   (get-pointer context))
-                'statement-stream))
+  (let ((ret-val (%model-find-statements-in-context (get-pointer model)
+                                                    (get-pointer statement)
+                                                    (get-pointer context))))
+    (if (null-pointer-p ret-val)
+        (error 'redland-error :format-control "Error in model-find-statements-in-context function.")
+        (wrap-pointer ret-val 'statement-stream))))
 
 (defun model-get-contexts (&optional (model *model*))
-  (wrap-pointer (%model-get-contexts (get-pointer model)) 'node-iterator))
+  (let ((ret-val (%model-get-contexts (get-pointer model))))
+    (if (null-pointer-p ret-val)
+        (error 'redland-error :format-control "Failure in get-context, perhaps contexts are unsupported in this model.")
+        (wrap-pointer ret-val 'node-iterator))))
 
 (defun model-get-feature (model feature)
   (wrap-pointer (%model-get-feature (get-pointer model) (get-pointer feature)) 'node))
@@ -450,55 +555,89 @@
 (defun model-set-feature (model feature value)
   (let ((result (%model-set-feature (get-pointer model) (get-pointer feature)
                                     (get-pointer value))))
-    (cond ((plusp result) :failure)
+    (cond ((plusp result) (signal-feature-error model feature t))
           ((zerop result) t)
-          ((minusp result) :no-such-feature))))
+          ((minusp result) (signal-feature-error model feature nil)))))
 
 (defun model-transaction-commit (&optional (model *model*))
-  (zerop (%model-transaction-commit (get-pointer model))))
+  (let ((ret-code (%model-transaction-commit (get-pointer model))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-transaction-error :format-control "Failed to commit transaction."))))
 
 (defun model-transaction-rollback (&optional (model *model*))
-  (zerop (%model-transaction-rollback (get-pointer model))))
+  (let ((ret-code (%model-transaction-rollback (get-pointer model))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-transaction-error :format-control "Failed to rollback transaction."))))
 
 (defun model-transaction-start (&optional (model *model*))
-  (zerop (%model-transaction-start (get-pointer model))))
+  (let ((ret-code (%model-transaction-start (get-pointer model))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-transaction-error :format-control "Failed to start transaction."))))
 
 ;;; handles, what are those?
 
 ;;; Nodes
 
 (defun make-private-node (&optional (world *world*))
-  (wrap-pointer (%new-node (get-pointer world)) 'node))
+  (let ((new-node (%new-node (get-pointer world))))
+    (if (null-pointer-p new-node)
+        (signal-construction-error 'node)
+        (wrap-pointer new-node 'node))))
 
 (defun make-node-from-uri-string (uri-string &optional (world *world*))
-  (wrap-pointer (%new-node-from-uri-string (get-pointer world) uri-string) 'node))
+  (let ((new-node (%new-node-from-uri-string (get-pointer world) uri-string)))
+    (if (null-pointer-p new-node)
+        (signal-construction-error 'node)
+        (wrap-pointer new-node 'node))))
 
 (defun make-node-from-uri (uri &optional (world *world*))
-  (wrap-pointer (%new-node-from-uri (get-pointer world) (get-pointer uri)) 'node))
+  (let ((new-node (%new-node-from-uri (get-pointer world) (get-pointer uri))))
+    (if (null-pointer-p new-node)
+        (signal-construction-error 'node)
+        (wrap-pointer new-node 'node))))
 
 (defun make-node-from-uri-local-name (uri local-name &optional (world *world*))
-  (wrap-pointer (%new-node-from-uri-local-name (get-pointer world)
-                                               (get-pointer uri)
-                                               local-name)
-                'node))
+  (let ((new-node (%new-node-from-uri-local-name (get-pointer world)
+                                                 (get-pointer uri)
+                                                 local-name)))
+    (if (null-pointer-p new-node)
+        (signal-construction-error 'node)
+        (wrap-pointer new-node 'node))))
 
 (defun make-node-from-normalised-uri-string (uri-string source-uri base-uri &optional (world *world*))
-  (wrap-pointer (%new-node-from-normalised-uri-string (get-pointer world) uri-string source-uri base-uri)
-                'node))
+  (let ((new-node (%new-node-from-normalised-uri-string (get-pointer world) uri-string source-uri base-uri)))
+    (if (null-pointer-p new-node)
+        (signal-construction-error 'node)
+        (wrap-pointer new-node 'node))))
 
 (defun make-node-from-literal (string &key (world *world*) (language *null*) (is-wf-xml nil))
-  (wrap-pointer (%new-node-from-literal (get-pointer world) string language (if is-wf-xml 1 0)) 'node))
+  (let ((new-node (%new-node-from-literal (get-pointer world) string language (if is-wf-xml 1 0))))
+    (if (null-pointer-p new-node)
+        (signal-construction-error 'node)
+        (wrap-pointer new-node 'node))))
 
 (defun make-node-from-typed-literal (string &key (world *world*) (language *null*) (datatype-uri *null*))
-  (wrap-pointer (%new-node-from-typed-literal (get-pointer world)
-                                              string
-                                              language (get-pointer datatype-uri)) 'node))
+  (let ((new-node (%new-node-from-typed-literal (get-pointer world)
+                                                string
+                                                language (get-pointer datatype-uri))))
+    (if (null-pointer-p new-node)
+        (signal-construction-error 'node)
+        (wrap-pointer new-node 'node))))
 
 (defun make-node-from-blank-identifier (identifier &optional (world *world*))
-  (wrap-pointer (%new-node-from-blank-identifier (get-pointer world) identifier) 'node))
+  (let ((new-node (%new-node-from-blank-identifier (get-pointer world) identifier)))
+    (if (null-pointer-p new-node)
+        (signal-construction-error 'node)
+        (wrap-pointer new-node 'node))))
 
 (defun copy-node (node)
-  (wrap-pointer (%new-node-from-node (get-pointer node)) 'node))
+  (let ((new-node (%new-node-from-node (get-pointer node))))
+    (if (null-pointer-p new-node)
+        (signal-construction-error 'node)
+        (wrap-pointer new-node 'node))))
 
 (defun node-get-uri (node)
   (wrap-shared-pointer (%node-get-uri (get-pointer node)) 'uri))
