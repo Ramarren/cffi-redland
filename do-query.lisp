@@ -32,21 +32,18 @@
 
 (defmacro do-query (query (&rest bindings) &body body)
   (let ((bindings (normalize-bindings-designator bindings)))
-    (with-unique-names (query-res bindings-array first)
+    (with-unique-names (query-res bindings-array)
       `(let ((,query-res (do-query-execute-query ,query))
-             (,first t)
              ,@(iter (for (b . nil) in bindings)
                      (collect b)))
          (unless (query-results-is-bindings-p ,query-res)
            (error 'redland-error "Can't do-query non-bindings result."))
          (let ((,bindings-array (binding-offsets ',(mapcar #'cdr bindings) ,query-res)))
            (iter (until (query-results-finished ,query-res))
-                 (if ,first
-                     (setf ,first nil)
-                     (query-results-next ,query-res))
                  (setf ,@(iter (for (b . nil) in bindings)
                                (for i from 0)
                                (collect b)
                                (collect `(query-results-get-binding-value ,query-res
                                                                           (aref ,bindings-array ,i)))))
-                 ,@body))))))
+                 ,@body
+                 (query-results-next ,query-res)))))))
