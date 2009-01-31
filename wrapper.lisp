@@ -265,7 +265,7 @@
                                     (get-pointer value))))
     (cond ((plusp result) (signal-feature-error world feature t))
           ((zerop result) t)
-          ((minusp result) (signal-feature-error world feature nil)))))
+          ((minusp result) ))))
 
 ;;; concepts
 
@@ -498,7 +498,7 @@
   (let ((ret-val (%model-context-as-stream (get-pointer model) (get-pointer context))))
     (if (null-pointer-p ret-val)
         (error 'redland-error :format-control "Error in model-context-as-stream function.")
-        (wrap-pointer  'statement-stream))))
+        (wrap-pointer ret-val 'statement-stream))))
 
 (defun model-contains-context (context &optional (model *model*))
   (not (zerop (%model-contains-context (get-pointer model) (get-pointer context)))))
@@ -507,7 +507,7 @@
   (let ((ret-val (%model-query-execute (get-pointer model) (get-pointer query))))
     (if (null-pointer-p ret-val)
         (error 'redland-error :format-control "Error in model-query-execute function.")
-        (wrap-pointer  'query-results))))
+        (wrap-pointer ret-val 'query-results))))
 
 (defun model-sync (&optional (model *model*))
   (let ((ret-code (%model-sync (get-pointer model))))
@@ -683,8 +683,17 @@
         (list (foreign-string-to-lisp (mem-ref name :pointer))
               (foreign-string-to-lisp (mem-ref label :pointer)))))))
 
+(defun parser-guess-name (&key (world *world*)
+                          (mime-type *null*)
+                          (buffer *null*)
+                          (identifier *null*))
+  (%parser-guess-name world mime-type buffer identifier))
+
 (defun make-parser (name &key (world *world*) (mime-type *null*) (type-uri *null*))
-  (wrap-pointer (%new-parser (get-pointer world) name mime-type (get-pointer type-uri)) 'parser))
+  (let ((new-parser (%new-parser (get-pointer world) name mime-type (get-pointer type-uri))))
+    (if (null-pointer-p new-parser)
+        (signal-construction-error 'parser)
+        (wrap-pointer new-parser 'parser))))
 
 (defun parse-as-stream (parser uri &optional (base-uri *null*))
   (wrap-pointer (%parser-parse-as-stream (get-pointer parser) (get-pointer uri)
@@ -692,10 +701,13 @@
                 'statement-stream))
 
 (defun parse-into-model (parser uri &key (model *model*) (base-uri *null*))
-  (zerop (%parser-parse-into-model (get-pointer parser)
-                                   (get-pointer uri)
-                                   (get-pointer base-uri)
-                                   (get-pointer model))))
+  (let ((ret-code (%parser-parse-into-model (get-pointer parser)
+                                            (get-pointer uri)
+                                            (get-pointer base-uri)
+                                            (get-pointer model))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-error "Failure in parse-into-model"))))
 
 (defun parse-string-as-stream (parser string &optional (base-uri *null*))
   (wrap-pointer (%parser-parse-as-stream (get-pointer parser) string
@@ -703,10 +715,13 @@
                 'statement-stream))
 
 (defun parse-string-into-model (parser string &key (model *model*) (base-uri *null*))
-  (zerop (%parser-parse-into-model (get-pointer parser)
-                                   string
-                                   (get-pointer base-uri)
-                                   (get-pointer model))))
+  (let ((ret-code (%parser-parse-into-model (get-pointer parser)
+                                            string
+                                            (get-pointer base-uri)
+                                            (get-pointer model))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-error "Failure in parse-string-into-model"))))
 
 (defun parser-get-feature (parser feature)
   (wrap-pointer (%parser-get-feature (get-pointer parser) (get-pointer feature)) 'node))
@@ -714,43 +729,61 @@
 (defun parser-set-feature (parser feature value)
   (let ((result (%parser-set-feature (get-pointer parser) (get-pointer feature)
                                     (get-pointer value))))
-    (cond ((plusp result) :failure)
+    (cond ((plusp result) (signal-feature-error parser feature t))
           ((zerop result) t)
-          ((minusp result) :no-such-feature))))
+          ((minusp result) (signal-feature-error parser feature nil)))))
 
 ;;; skipping namespaces
 
 ;;; Query
 
 (defun make-query (query-string &key (world *world*) (name "sparql") (uri *null*) (base-uri *null*))
-  (wrap-pointer (%new-query (get-pointer world)
-                            name (get-pointer uri)
-                            query-string (get-pointer base-uri))
-                'query))
+  (let ((new-query (%new-query (get-pointer world)
+                               name (get-pointer uri)
+                               query-string (get-pointer base-uri))))
+    (if (null-pointer-p new-query)
+        (signal-construction-error 'query)
+        (wrap-pointer new-query 'query))))
 
 (defun copy-query (old-query)
-  (wrap-pointer (%new-query-from-query (get-pointer old-query)) 'query))
+  (let ((new-query (%new-query-from-query (get-pointer old-query))))
+    (if (null-pointer-p new-query)
+        (signal-construction-error 'query)
+        (wrap-pointer new-query 'query))))
 
 (defun query-execute (query &optional (model *model*))
-  (wrap-pointer (%query-execute (get-pointer query) (get-pointer model)) 'query-results))
+  (let ((ret-val (%query-execute (get-pointer query) (get-pointer model))))
+    (if (null-pointer-p ret-val)
+        (error 'redland-error :format-control "Failed to execute query")
+        (wrap-pointer ret-val 'query-results))))
 
 (defun query-get-limit (query)
   (%query-get-limit (get-pointer query)))
 
 (defun query-set-limit (query limit)
-  (zerop (%query-set-limit (get-pointer query) limit)))
+  (let ((ret-code (%query-set-limit (get-pointer query) limit)))
+    (if (zerop ret-code)
+        t
+        (error 'redland-error :format-control "Failed to set query limit"))))
 
 (defun query-get-offset (query)
   (%query-get-offset (get-pointer query)))
 
 (defun query-set-offset (query offset)
-  (zerop (%query-set-offset (get-pointer query) offset)))
+  (let ((ret-code (%query-set-offset (get-pointer query) offset)))
+    (if (zerop ret-code)
+        t
+        (error 'redland-error :format-control "Failed to set query offset"))))
 
 ;;; Query results
 
 (defun query-results-as-stream (query-results)
-  (assert (not (zerop (%query-results-is-graph (get-pointer query-results)))))
-  (wrap-pointer (%query-results-as-stream (get-pointer query-results)) 'statement-stream))
+  (unless (query-results-is-graph-p query-results)
+    (error 'redland-error :format-control "Tried to convert non-graph query results to stream"))
+  (let ((ret-val (%query-results-as-stream (get-pointer query-results))))
+    (if (null-pointer-p ret-val)
+        (error 'redland-error :format-control "Failed to convert query-results to stream")
+        (wrap-pointer ret-val 'statement-stream))))
 
 (defun query-results-get-count (query-results)
   (%query-results-get-count (get-pointer query-results)))
@@ -768,7 +801,8 @@
       (with-foreign-pointer (names (foreign-type-size :pointer))
         (with-foreign-objects ((values :pointer bindings-count))
           (let ((ret-code (%query-results-get-bindings (get-pointer query-results) names values)))
-            (assert (zerop ret-code)))
+            (unless (zerop ret-code)
+              (error 'redland-error :format-control "Failure to assign query result bindings")))
           (iter (with name-array = (mem-ref names :pointer))
                 (for i below bindings-count)
                 (collect (cons (foreign-string-to-lisp (mem-aref name-array :pointer i))
@@ -776,15 +810,12 @@
                                              'node)))))))))
 
 (defun query-results-get-binding-value (query-results offset)
-  (assert (not (zerop (%query-results-is-bindings (get-pointer query-results)))))
   (wrap-pointer (%query-results-get-binding-value (get-pointer query-results) offset) 'node))
 
 (defun query-results-get-binding-name (query-results offset)
-  (assert (not (zerop (%query-results-is-bindings (get-pointer query-results)))))
   (%query-results-get-binding-name (get-pointer query-results) offset))
 
 (defun query-results-get-binding-value-by-name (query-results name)
-  (assert (not (zerop (%query-results-is-bindings (get-pointer query-results)))))
   (wrap-pointer (%query-results-get-binding-value-by-name (get-pointer query-results) name) 'node))
 
 (defun query-results-get-bindings-count (query-results)
@@ -853,19 +884,30 @@
               (foreign-string-to-lisp (mem-ref label :pointer)))))))
 
 (defun make-serializer (name &key (world *world*) (mime-type *null*) (type-uri *null*))
-  (wrap-pointer (%new-serializer (get-pointer world) name mime-type (get-pointer type-uri)) 'serializer))
+  (let ((new-serializer (%new-serializer (get-pointer world) name mime-type (get-pointer type-uri))))
+    (if (null-pointer-p new-serializer)
+        (signal-construction-error 'serializer)
+        (wrap-pointer new-serializer 'serializer))))
 
 (defun serialize-model-to-file (serializer name &key (base-uri *null*) (model *model*))
-  (zerop (%serializer-serialize-model-to-file (get-pointer serializer) name
-                                              (get-pointer base-uri) (get-pointer model))))
+  (let ((ret-code (%serializer-serialize-model-to-file (get-pointer serializer) name
+                                                       (get-pointer base-uri) (get-pointer model))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-error :format-control "Failed to serialize model to file ~a"
+               :format-arguments (list name)))))
 
 (defun serialize-model-to-string (serializer &key (base-uri *null*) (model *model*))
   (%serializer-serialize-model-to-string (get-pointer serializer)
                                          (get-pointer base-uri) (get-pointer model)))
 
 (defun serialize-stream-to-file (serializer name stream &key (base-uri *null*))
-  (zerop (%serializer-serialize-stream-to-file (get-pointer serializer) name
-                                               (get-pointer base-uri) (get-pointer stream))))
+  (let ((ret-code (%serializer-serialize-stream-to-file (get-pointer serializer) name
+                                                        (get-pointer base-uri) (get-pointer stream))))
+    (if (zerop ret-code)
+        t
+        (error 'redland-error :format-control "Failed to serialize stream to file ~a"
+               :format-arguments (list name)))))
 
 (defun serialize-stream-to-string (serializer stream &key (base-uri *null*))
   (%serializer-serialize-stream-to-string (get-pointer serializer)
@@ -877,31 +919,44 @@
 (defun serializer-set-feature (serializer feature value)
   (let ((result (%serializer-set-feature (get-pointer serializer) (get-pointer feature)
                                          (get-pointer value))))
-    (cond ((plusp result) :failure)
+    (cond ((plusp result) (signal-feature-error serializer feature t))
           ((zerop result) t)
-          ((minusp result) :no-such-feature))))
+          ((minusp result) (signal-feature-error serializer feature nil)))))
 
 (defun serilizer-set-namespace (serializer uri prefix)
-  (zerop (%serializer-set-namespace (get-pointer serializer)
-                                    (get-pointer uri)
-                                    prefix)))
+  (let ((ret-code (%serializer-set-namespace (get-pointer serializer)
+                                             (get-pointer uri)
+                                             prefix)))
+    (if (zerop ret-code)
+        t
+        (error 'redland-error :format-control "Failed to set namespace ~a in serializer ~a to prefix ~a"
+               :format-arguments (list uri serializer prefix)))))
 
 ;;; Statement
 
 (defun make-statement (&optional (world *world*))
-  (wrap-pointer (%new-statement (get-pointer world)) 'statement))
+  (let ((new-statement (%new-statement (get-pointer world))))
+    (if (null-pointer-p new-statement)
+        (signal-construction-error 'statement)
+        (wrap-pointer new-statement 'statement))))
 
 (defun copy-statement (statement)
-  (wrap-pointer (%new-statement-from-statement (get-pointer statement)) 'statement))
+  (let ((new-statement (%new-statement-from-statement (get-pointer statement))))
+    (if (null-pointer-p new-statement)
+        (signal-construction-error 'statement)
+        (wrap-pointer new-statement 'statement))))
 
 (defun make-statement-from-nodes (subject predicate object &optional (world *world*))
   (unown-pointer subject)
   (unown-pointer predicate)
   (unown-pointer object)
-  (wrap-pointer (%new-statement-from-nodes (get-pointer world)
-                                           (get-pointer subject)
-                                           (get-pointer predicate)
-                                           (get-pointer object)) 'statement))
+  (let ((new-statement (%new-statement-from-nodes (get-pointer world)
+                                                  (get-pointer subject)
+                                                  (get-pointer predicate)
+                                                  (get-pointer object))))
+    (if (null-pointer-p new-statement)
+        (signal-construction-error 'statement)
+        (wrap-pointer new-statement 'statement))))
 
 (defun statement-clear (statement)
   (%statement-clear (get-pointer statement)))
@@ -948,8 +1003,11 @@
               (foreign-string-to-lisp (mem-ref label :pointer)))))))
 
 (defun make-storage (storage-name name options &optional (world *world*))
-  (wrap-pointer (%new-storage (get-pointer world)
-                              storage-name name options) 'storage))
+  (let ((new-storage (%new-storage (get-pointer world)
+                                   storage-name name options)))
+    (if (null-pointer-p new-storage)
+        (signal-construction-error 'storage)
+        (wrap-pointer new-storage 'storage))))
 
 (defmacro with-storage ((storage-name name options &optional (world '*world*)) &body body)
   `(let ((*storage* (make-storage ,storage-name ,name ,options ,world)))
@@ -959,7 +1017,10 @@
 ;;; TODO: storage with options, requires hashes
 
 (defun copy-storage (old-storage)
-  (wrap-pointer (%new-storage-from-storage (get-pointer old-storage)) 'storage))
+  (let ((new-storage (%new-storage-from-storage (get-pointer old-storage))))
+    (if (null-pointer-p new-storage)
+        (signal-construction-error 'storage)
+        (wrap-pointer new-storage 'storage))))
 
 (defun storage-get-feature (storage feature)
   (wrap-pointer (%storage-get-feature (get-pointer storage) (get-pointer feature)) 'node))
@@ -967,9 +1028,9 @@
 (defun storage-set-feature (storage feature value)
   (let ((result (%storage-set-feature (get-pointer storage) (get-pointer feature)
                                     (get-pointer value))))
-    (cond ((plusp result) :failure)
+    (cond ((plusp result) (signal-feature-error storage feature t))
           ((zerop result) t)
-          ((minusp result) :no-such-feature))))
+          ((minusp result) (signal-feature-error storage feature nil)))))
 
 ;;; Streams
 
@@ -990,20 +1051,31 @@
     (wrap-shared-pointer (call-next-method) 'statement)))
 
 (defun make-stream-from-node-iterator (node-iterator statement field)
-  (wrap-pointer (%new-stream-from-node-iterator
-                 (get-pointer node-iterator) (get-pointer statement) field)
-                'statement-stream))
+  (let ((new-stream (%new-stream-from-node-iterator
+                     (get-pointer node-iterator) (get-pointer statement) field)))
+    (if (null-pointer-p new-stream)
+        (signal-construction-error 'stream)
+        (wrap-pointer new-stream 'statement-stream))))
 
 ;;; URI
 
 (defun make-uri (uri-string &optional (world *world*))
-  (wrap-pointer (%new-uri (get-pointer world) uri-string) 'uri))
+  (let ((new-uri  (%new-uri (get-pointer world) uri-string)))
+    (if (null-pointer-p new-uri)
+        (signal-construction-error 'uri)
+        (wrap-pointer new-uri 'uri))))
 
 (defun copy-uri (old-uri)
-  (wrap-pointer (%new-uri-from-uri (get-pointer old-uri)) 'uri))
+  (let ((new-uri  (%new-uri-from-uri (get-pointer old-uri))))
+    (if (null-pointer-p new-uri)
+        (signal-construction-error 'uri)
+        (wrap-pointer new-uri 'uri))))
 
 (defun make-uri-from-uri-local-name (old-uri local-name)
-  (wrap-pointer (%new-uri-from-uri-local-name (get-pointer old-uri) local-name) 'uri))
+  (let ((new-uri  (%new-uri-from-uri-local-name (get-pointer old-uri) local-name)))
+    (if (null-pointer-p new-uri)
+        (signal-construction-error 'uri)
+        (wrap-pointer new-uri 'uri))))
 
 (defun uri-as-string (uri)
   (%uri-as-string (get-pointer uri)))
@@ -1022,18 +1094,27 @@
   (%uri-to-filename (get-pointer uri)))
 
 (defun make-uri-normalised-to-base (uri-string source-uri base-uri)
-  (wrap-pointer (%new-uri-normalised-to-base uri-string
-                                             (get-pointer source-uri)
-                                             (get-pointer base-uri))
-                'uri))
+  (let ((new-uri  (%new-uri-normalised-to-base uri-string
+                                               (get-pointer source-uri)
+                                               (get-pointer base-uri))))
+    (if (null-pointer-p new-uri)
+        (signal-construction-error 'uri)
+        (wrap-pointer new-uri
+                      'uri))))
 
 (defun make-uri-relative-to-base (base-uri uri-string)
-  (wrap-pointer (%new-uri-relative-to-base (get-pointer base-uri)
-                                           uri-string)
-                'uri))
+  (let ((new-uri  (%new-uri-relative-to-base (get-pointer base-uri)
+                                             uri-string)))
+    (if (null-pointer-p new-uri)
+        (signal-construction-error 'uri)
+        (wrap-pointer new-uri
+                      'uri))))
 
 (defun make-uri-from-filename (filename &optional (world *world*))
-  (wrap-pointer (%new-uri-from-filename (get-pointer world) (namestring filename)) 'uri))
+  (let ((new-uri  (%new-uri-from-filename (get-pointer world) (namestring filename))))
+    (if (null-pointer-p new-uri)
+        (signal-construction-error 'uri)
+        (wrap-pointer new-uri 'uri))))
 
 (defun uri-compare (uri1 uri2)
   (%uri-compare (get-pointer uri1) (get-pointer uri2)))
