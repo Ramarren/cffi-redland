@@ -1060,7 +1060,7 @@
 ;;; URI
 
 (defun make-uri (uri-string &optional (world *world*))
-  (let ((new-uri  (%new-uri (get-pointer world) uri-string)))
+  (let ((new-uri (%new-uri (get-pointer world) uri-string)))
     (if (null-pointer-p new-uri)
         (signal-construction-error 'uri)
         (wrap-pointer new-uri 'uri))))
