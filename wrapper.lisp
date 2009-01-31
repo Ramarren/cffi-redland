@@ -162,6 +162,19 @@
 (defclass query-results-formatter (pointer-wrapper)
   ())
 
+;;; conditions
+
+(define-condition redland-error (simple-error)
+  ())
+
+(define-condition redland-construction-error (redland-error)
+  ())
+
+(defun signal-construction-error (what)
+  (error 'redland-construction-error
+         :format-control "Failed to construct ~a"
+         :format-arguments (list what)))
+
 ;;; special variables
 (defvar *world* nil)
 (defvar *storage* nil)
