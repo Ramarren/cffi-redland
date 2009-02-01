@@ -841,7 +841,7 @@
   (not (zerop (%query-results-is-syntax (get-pointer query-results)))))
 
 (defun query-results-get-boolean (query-results)
-  (let ((result (%query-results-get-boolean query-results)))
+  (let ((result (%query-results-get-boolean (get-pointer query-results))))
     (cond ((> result 0) t)
           ((= result 0) nil)
           ((< result 0) :error-or-finished))))
