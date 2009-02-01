@@ -179,3 +179,36 @@
               (or (p (car args) " || " (cadr args)))
               (and (p (car args) " && " (cadr args))))
             (p ")"))))))
+
+;;; CONSTRUCT
+
+(defun construct (template where &key order-by limit offset)
+  (with-output-to-string (stream)
+    (princ "CONSTRUCT {" stream)
+    (assert (mod (length template) 3))
+    (iter (for (p o s . rest) on template by #'cdddr)
+          (princ-terminal p stream)
+          (princ " " stream)
+          (princ-terminal o stream)
+          (princ " " stream)
+          (princ-terminal s stream)
+          (when rest
+            (princ " . " stream)))
+    (princ "}" stream)
+    (terpri stream)
+    (princ "WHERE " stream)
+    (princ where stream)
+    (when order-by
+      (princ "ORDER BY " order-by)
+      (terpri))
+    (when limit
+      (princ "LIMIT " limit))
+    (when offset
+      (princ "OFFSET " offset))))
+
+;;; ASK
+
+(defun ask (what)
+  (with-output-to-string (stream)
+    (princ "ASK " stream)
+    (princ what stream)))
