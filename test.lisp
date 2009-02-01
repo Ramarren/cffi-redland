@@ -128,20 +128,19 @@
           (do-query query (y title)
             (format t "~a ~a~&" y title)))))))
 
-(defun test-sparql-query (query &key kind)
+(defun test-sparql-query (query)
   (with-world (:log-function (make-log-everything *standard-output*))
     (with-storage ("hashes" "test" "hash-type='memory'")
       (with-model ()
         (model-load (make-uri "http://ramarren.blox.pl/rss2"))
-        (let ((query (make-query query)))
-          (ecase kind
-            (:select
-               (do-query query (y title)
-                 (format t "~a ~a~&" y title)))
-            (:construct
-               (iter (for s in-redland-stream (query-results-as-stream (query-execute query)))
-                     (princ (statement-to-string s))
-                     (terpri)))
-            (:ask
-               (princ (query-results-get-boolean (query-execute query)))
-               (terpri))))))))
+        (let ((query-results (query-execute (make-query query))))
+          (cond ((query-results-is-bindings-p query-results)
+                 (iter (for alist in-query-results query-results)
+                       (print alist)))
+                ((query-results-is-graph-p query-results)
+                 (iter (for s in-redland-stream (query-results-as-stream query-results))
+                       (princ (statement-to-string s))
+                       (terpri)))
+                ((query-results-is-boolean-p query-results)
+                 (print (query-results-get-boolean query-results)))))))))
+
