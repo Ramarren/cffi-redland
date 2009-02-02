@@ -1,6 +1,8 @@
 (defpackage #:sparql-macro
     (:use #:cl #:bpm #:iterate #:alexandria #:redland))
 
+(in-package :sparql-macro)
+
 ;;; redland dependency is there to be able to transform nodes/uris to strings
 
 ;;; all IRIs should go through node/uri objects, no direct string insertion into output

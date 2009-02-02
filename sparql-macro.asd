@@ -5,4 +5,4 @@
   :author "Jakub Higersberger <ramarren@gmail.com>"
   :licence "BSD-style"
   :depends-on (:bpm :redland :iterate :alexandria)
-  :components ())
+  :components ((:file "sparql-macro")))
