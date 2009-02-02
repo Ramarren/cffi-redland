@@ -163,6 +163,39 @@
      (values `(progn (princ "GRAPH ") ,gr-code (princ " ") ,g-code)
              (remove-duplicates (append g-vars gr-vars))))))
 
+(def! transform-order-by nil
+  nil)
+
+(def transform-order-by ((_direction _name) . _rest)
+  `((princ " ORDER BY ")
+    (princ ,(ecase _direction
+              (:asc "ASC(")
+              (:desc "DESC(")))
+    (princ ,(string-downcase _name))
+    (princ ") ")
+    ,@(transform-order-by _rest)))
+
+(def transform-order-by (_direction _name)
+  (where (or (eql _direction :asc)
+             (eql _direction :desc)))
+  `((princ " ORDER BY ")
+    (princ ,(ecase _direction
+              (:asc "ASC(")
+              (:desc "DESC(")))
+    (princ ,(string-downcase _name))
+    (princ ") ")))
+
+(def transform-order-by (_name . _rest)
+  `((princ " ORDER BY ")
+    (princ ,(string-downcase _name))
+    (when _rest
+      (princ " ")
+      ,@(transform-order-by _rest))))
+
+(def transform-order-by _order-by
+  `((princ " ORDER BY ")
+    (princ ,(string-downcase _order-by))))
+
 (def transform-sparql (select _vars _where . _mods)
   (multiple-value-bind (w-code w-vars) (transform-sparql (if (eql (car _where) '$)
                                                              _where
@@ -180,9 +213,8 @@
                        (collect `(princ ,(string-downcase v))))
                (princ " WHERE ")
                ,w-code
-               ,@(when (getf _mods :order-by);more: lists, directions
-                 `((princ " ORDER BY ")
-                   (princ ,(string-downcase (getf _mods :order-by)))))
+               ,@(when (getf _mods :order-by)
+                 (transform-order-by (getf _mods :order-by)))
                ,@(when (getf _mods :limit)
                    `((princ " LIMIT ")
                      (princ ,(getf _mods :limit))))
