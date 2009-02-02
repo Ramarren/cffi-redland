@@ -958,6 +958,9 @@
         (signal-construction-error 'statement)
         (wrap-pointer new-statement 'statement))))
 
+(defun make-template (&key (subject *null*) (predicate *null*) (object *null*) (world *world*))
+  (make-statement-from-nodes subject predicate object world))
+
 (defun statement-clear (statement)
   (%statement-clear (get-pointer statement)))
 
