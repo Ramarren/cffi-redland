@@ -427,6 +427,9 @@
         (error 'redland-error :format-control "Error in find-statements.")
         (wrap-pointer stream 'statement-stream))))
 
+(defun model-find-statements-with-nodes (&key (subject *null*) (predicate *null*) (object *null*) (world *world*) (model *model*))
+  (model-find-statements (make-statement-from-nodes subject predicate object world) model))
+
 ;;; TODO: find with options, requires hashes above
 
 (defmacro define-get-function (what first second)
@@ -542,6 +545,10 @@
     (if (null-pointer-p ret-val)
         (error 'redland-error :format-control "Error in model-find-statements-in-context function.")
         (wrap-pointer ret-val 'statement-stream))))
+
+(defun model-find-statements-in-context-with-nodes (&key (context *null*) (subject *null*) (predicate *null*) (object *null*) (world *world*) (model *model*))
+  (model-find-statements-in-context (make-statement-from-nodes subject predicate object world)
+                                    context model))
 
 (defun model-get-contexts (&optional (model *model*))
   (let ((ret-val (%model-get-contexts (get-pointer model))))

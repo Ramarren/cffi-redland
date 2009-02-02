@@ -178,4 +178,6 @@
            #:redland-feature-error
            #:redland-statement-add-error
            #:redland-transaction-error
-           #:do-query))
+           #:do-query
+           #:model-find-statements-with-nodes
+           #:model-find-statements-in-context-with-nodes))
