@@ -158,13 +158,15 @@
 (def transform-sparql (graph _graph . _group)
   (multiple-value-bind (g-code g-vars) (transform-sparql (if (eql (car _group) '$)
                                                              _group
-                                                             (cons '$ _group)))
+                                                             (list '$ _group)))
     (multiple-value-bind (gr-code gr-vars) (transform-sparql _graph)
      (values `(progn (princ "GRAPH ") ,gr-code (princ " ") ,g-code)
              (remove-duplicates (append g-vars gr-vars))))))
 
 (def transform-sparql (select _vars _where . _mods)
-  (multiple-value-bind (w-code w-vars) (transform-sparql _where)
+  (multiple-value-bind (w-code w-vars) (transform-sparql (if (eql (car _where) '$)
+                                                             _where
+                                                             (list '$ _where)))
     (values `(progn
                (princ "SELECT")
                ,@(when (getf _mods :distinct)
@@ -188,3 +190,134 @@
                    `((princ " OFFSET ")
                      (princ ,(getf _mods :offset)))))
             w-vars)))
+
+(def transform-sparql (construct _template _where . _mods)
+  (multiple-value-bind (w-code w-vars) (transform-sparql _where)
+    (values `(progn
+               (princ "CONSTRUCT")
+               ,(transform-sparql (if (eql (car _template) '$)
+                                      _template
+                                      (list '$ _template)))
+               (princ " WHERE ")
+               ,w-code
+               ,@(when (getf _mods :limit)
+                   `((princ " LIMIT ")
+                     (princ ,(getf _mods :limit))))
+               ,@(when (getf _mods :offset)
+                   `((princ " OFFSET ")
+                     (princ ,(getf _mods :offset)))))
+            w-vars)))
+
+(def transform-sparql (ask _where)
+  (multiple-value-bind (w-code w-vars) (transform-sparql _where)
+    (values `(progn
+               (princ "ASK")
+               ,w-code)
+            w-vars)))
+
+(def! transform-filter _endpoint
+  (where (symbolp _endpoint))
+  (if (char= (char (symbol-name _endpoint) 0) #\?)
+      (values `(princ ,(string-downcase _endpoint)) nil)
+      (values _endpoint (list _endpoint))))
+
+(def transform-filter _endpoint
+  (where (atom _endpoint))
+  (values `(princ ,(terminal-to-string _endpoint)) nil))
+
+(defmacro define-unary-filter-op (op expansion)
+  `(def transform-filter (,op _a)
+     (multiple-value-bind (a-code a-vars) (transform-filter _a)
+       (values `(progn (princ "(") (princ ,,expansion) ,a-code (princ ")"))
+               a-vars))))
+
+(define-unary-filter-op not "! ")
+
+(define-unary-filter-op + "+ ")
+
+(define-unary-filter-op - "- ")
+
+(defmacro define-unary-filter-fun (fun expansion)
+  `(def transform-filter (,fun _a)
+     (multiple-value-bind (a-code a-vars) (transform-filter _a)
+       (values `(progn (princ ,,expansion) (princ "(") ,a-code (princ ")"))
+               a-vars))))
+
+(define-unary-filter-fun boundp "BOUND")
+
+(define-unary-filter-fun is-iri-p "isIRI")
+
+(define-unary-filter-fun is-uri-p "isURI")
+
+(define-unary-filter-fun is-blank-p "isBLANK")
+
+(define-unary-filter-fun is-literal-p "isLITERAL")
+
+(define-unary-filter-fun str "STR")
+
+(define-unary-filter-fun lang "LANG")
+
+(define-unary-filter-fun datatype "DATATYPE")
+
+(defmacro define-binary-filter-op (op expansion)
+  `(def transform-filter (,op _a _b)
+     (multiple-value-bind (a-code a-vars) (transform-filter _a)
+       (multiple-value-bind (b-code b-vars) (transform-filter _b)
+         (values `(progn (princ "(") ,a-code (princ " ") (princ ,,expansion) (princ " ") ,b-code (princ ")"))
+                 (remove-duplicates (append a-vars b-vars)))))))
+
+(define-binary-filter-op or "||")
+(define-binary-filter-op and "&&")
+(define-binary-filter-op = "=")
+(define-binary-filter-op != "!=")
+(define-binary-filter-op < "<")
+(define-binary-filter-op > ">")
+(define-binary-filter-op >= ">=")
+(define-binary-filter-op <= "<=")
+(define-binary-filter-op * "*")
+(define-binary-filter-op / "/")
+(define-binary-filter-op + "+")
+(define-binary-filter-op - "-")
+
+(define-unary-filter-fun same-term-p "sameTERM")
+
+(defmacro define-binary-filter-fun (fun expansion)
+  `(def transform-filter (,fun _a _b)
+     (multiple-value-bind (a-code a-vars) (transform-filter _a)
+       (multiple-value-bind (b-code b-vars) (transform-filter _b)
+        (values `(progn (princ ,,expansion) (princ "(") ,a-code (princ ",") ,b-code (princ ")"))
+                (remove-duplicates (append a-vars b-vars)))))))
+
+(define-binary-filter-fun regex "REGEX")
+
+(defmacro define-trinary-filter-fun (fun expansion)
+  `(def transform-filter (,fun _a _b _c)
+     (multiple-value-bind (a-code a-vars) (transform-filter _a)
+       (multiple-value-bind (b-code b-vars) (transform-filter _b)
+         (multiple-value-bind (c-code c-vars) (transform-filter _c)
+           (values `(progn (princ ,,expansion) (princ "(") ,a-code (princ ",") ,b-code
+                           (princ ",") ,c-code (princ ")"))
+                   (remove-duplicates (append a-vars b-vars c-vars))))))))
+
+(define-trinary-filter-fun regex "REGEX")
+
+(def transform-sparql (filter _filter)
+  (multiple-value-bind (f-code f-vars) (transform-filter _filter)
+    (values `(progn
+               (princ "FILTER ")
+               ,f-code)
+            f-vars)))
+
+;allow arbitrary code insertion, allowing macros and things, doesn't handle additional variables
+;though
+(def transform-sparql _something-else
+  _something-else)
+
+(defmacro sparql (query &rest local-bindings)
+  (multiple-value-bind (code vars) (transform-sparql query)
+    `(with-output-to-string (*standard-output*)
+       (let* (,@(iter (for b in local-bindings)
+                     (collect b)))
+         (let (,@(iter (for v in (remove-duplicates vars))
+                       (collect (list v `(terminal-to-string ,v)))))
+           ,code)))))
