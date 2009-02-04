@@ -428,7 +428,10 @@
         (wrap-pointer stream 'statement-stream))))
 
 (defun model-find-statements-with-nodes (&key (subject *null*) (predicate *null*) (object *null*) (world *world*) (model *model*))
-  (model-find-statements (make-statement-from-nodes subject predicate object world) model))
+  (model-find-statements (make-statement-from-nodes (copy-node subject)
+                                                    (copy-node predicate)
+                                                    (copy-node object)
+                                                    world) model))
 
 ;;; TODO: find with options, requires hashes above
 
@@ -450,8 +453,7 @@
      (let ((ret-val (,(symbolicate '%model-get- what) (get-pointer model)
                       (get-pointer ,first) (get-pointer ,second))))
        (if (null-pointer-p ret-val)
-           (error 'redland-error :format-control "Error in ~a retrieval function"
-                  :format-arguments (list ',what))
+           nil
            (wrap-pointer ret-val 'node)))))
 
 (define-single-get-function source arc target)
@@ -641,10 +643,11 @@
         (wrap-pointer new-node 'node))))
 
 (defun copy-node (node)
-  (let ((new-node (%new-node-from-node (get-pointer node))))
-    (if (null-pointer-p new-node)
-        (signal-construction-error 'node)
-        (wrap-pointer new-node 'node))))
+  (when node
+    (let ((new-node (%new-node-from-node (get-pointer node))))
+      (if (null-pointer-p new-node)
+          (signal-construction-error 'node)
+          (wrap-pointer new-node 'node)))))
 
 (defun node-get-uri (node)
   (wrap-shared-pointer (%node-get-uri (get-pointer node)) 'uri))
@@ -954,13 +957,22 @@
         (wrap-pointer new-statement 'statement))))
 
 (defun make-statement-from-nodes (subject predicate object &optional (world *world*))
-  (unown-pointer subject)
-  (unown-pointer predicate)
-  (unown-pointer object)
+  (when subject
+    (unown-pointer subject))
+  (when predicate
+    (unown-pointer predicate))
+  (when object
+    (unown-pointer object))
   (let ((new-statement (%new-statement-from-nodes (get-pointer world)
-                                                  (get-pointer subject)
-                                                  (get-pointer predicate)
-                                                  (get-pointer object))))
+                                                  (if subject
+                                                      (get-pointer subject)
+                                                      *null*)
+                                                  (if predicate
+                                                      (get-pointer predicate)
+                                                      *null*)
+                                                  (if object
+                                                      (get-pointer object)
+                                                      *null*))))
     (if (null-pointer-p new-statement)
         (signal-construction-error 'statement)
         (wrap-pointer new-statement 'statement))))
