@@ -180,4 +180,7 @@
            #:redland-transaction-error
            #:do-query
            #:model-find-statements-with-nodes
-           #:model-find-statements-in-context-with-nodes))
+           #:model-find-statements-in-context-with-nodes
+           #:model-to-list
+           #:stream-to-list
+           #:iterator-to-list))

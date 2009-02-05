@@ -1144,3 +1144,15 @@
         (for e = (funcall enumerate-fun i world))
         (while e)
         (collect e)))
+
+(defun model-to-list (&optional (model *model*))
+  (iter (for i in-model model)
+        (collect i)))
+
+(defun stream-to-list (redland-stream)
+  (iter (for i in-redland-stream redland-stream)
+        (collect i)))
+
+(defun iterator-to-list (redland-iterator)
+  (iter (for i in-redland-iterator redland-iterator)
+        (collect i)))
