@@ -113,7 +113,7 @@
   (:method ((wrapper pointer-wrapper) type)
     (unless (or (null type)
                 (eql (get-type wrapper) type))
-      (error 'redland-type-error ))
+      (error 'redland-type-error :is (get-type wrapper) :should-be type))
     (let ((arry (pointer-array wrapper)))
       (aref arry 1))))
 
@@ -762,7 +762,7 @@
   (let ((new-query (%new-query-from-query (get-pointer old-query 'query))))
     (if (null-pointer-p new-query)
         (signal-construction-error 'query)
-        (wrap-pointer new-query 'query (get-world query)))))
+        (wrap-pointer new-query 'query (get-world old-query)))))
 
 (defun query-execute (query &optional (model *model*))
   (let ((ret-val (%query-execute (get-pointer query 'query) (get-pointer model 'model))))
@@ -968,13 +968,13 @@
     (unown-pointer object))
   (let ((new-statement (%new-statement-from-nodes (get-pointer world 'world)
                                                   (if subject
-                                                      (get-pointer subject 'statement)
+                                                      (get-pointer subject 'node)
                                                       *null*)
                                                   (if predicate
-                                                      (get-pointer predicate 'statement)
+                                                      (get-pointer predicate 'node)
                                                       *null*)
                                                   (if object
-                                                      (get-pointer object 'statement)
+                                                      (get-pointer object 'node)
                                                       *null*))))
     (if (null-pointer-p new-statement)
         (signal-construction-error 'statement)
