@@ -664,7 +664,10 @@
 ;;; TODO: some more node retrievals
 
 (defun node-get-li-ordinal (node)
-  (%node-get-li-ordinal (get-pointer node 'node)))
+  (let ((ret-val
+         (%node-get-li-ordinal (get-pointer node 'node))))
+    (unless (= ret-val -1)
+      ret-val)))
 
 (defun node-get-blank-identifier (node)
   (%node-get-blank-identifier (get-pointer node 'node)))
