@@ -47,3 +47,11 @@
                              (query-results-next ,qr))
                          (when (query-results-finished ,qr) (terminate))
                          (query-results-get-bindings ,qr))))))
+
+(defun stream-to-list (redland-stream)
+  (iter (for i in-redland-stream redland-stream)
+        (collect i)))
+
+(defun iterator-to-list (redland-iterator)
+  (iter (for i in-redland-iterator redland-iterator)
+        (collect i)))
