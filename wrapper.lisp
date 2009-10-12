@@ -1148,6 +1148,3 @@
         (while e)
         (collect e)))
 
-(defun model-to-list (&optional (model *model*))
-  (iter (for i in-model model)
-        (collect i)))

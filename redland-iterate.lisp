@@ -55,3 +55,7 @@
 (defun iterator-to-list (redland-iterator)
   (iter (for i in-redland-iterator redland-iterator)
         (collect i)))
+
+(defun model-to-list (&optional (model *model*))
+  (iter (for i in-model model)
+        (collect i)))
