@@ -44,6 +44,7 @@
              (format stream "Wanted pointer-wrapper of type ~a, tried to unwrap ~a"
                      (should-be-of c) (is-of c)))))
 
+;;; classes
 ;; pointer-array: #(is-owned-by-lisp pointer world-object)
 (defclass pointer-wrapper ()
   ((pointer :initform (make-array 3 :initial-contents (list nil *null* nil))
@@ -52,6 +53,78 @@
    (type :initform nil
          :initarg :type
          :accessor get-type)))
+
+(defclass world (pointer-wrapper)
+  ((world-alive :initform t :accessor world-alive-p)))
+
+(defclass storage (pointer-wrapper)
+  ())
+
+(defclass model (pointer-wrapper)
+  ())
+
+(defclass node (pointer-wrapper)
+  ())
+
+(defmethod print-object ((node node) stream)
+  (print-unreadable-object (node stream :type t :identity nil)
+    (if (world-alive-p (get-world node))
+        (princ (%node-to-string (get-pointer node 'node)) stream)
+        (princ 'invalidated stream))))
+
+(defclass statement (pointer-wrapper)
+  ())
+
+(defmethod print-object ((statement statement) stream)
+  (print-unreadable-object (statement stream :type t :identity nil)
+    (if (world-alive-p (get-world statement))
+        (princ (%statement-to-string (get-pointer statement 'statement)) stream)
+        (princ 'invalid stream))))
+
+(defclass uri (pointer-wrapper)
+  ())
+
+(defmethod print-object ((uri uri) stream)
+  (print-unreadable-object (uri stream :type t :identity nil)
+    (if (world-alive-p (get-world uri))
+        (princ (%uri-to-string (get-pointer uri 'uri)) stream)
+        (princ 'invalid stream))))
+
+(defclass parser (pointer-wrapper)
+  ())
+
+(defclass serializer (pointer-wrapper)
+  ())
+
+(defclass digest (pointer-wrapper)
+  ())
+
+(defclass hash (pointer-wrapper)
+  ())
+
+(defclass iterator (pointer-wrapper)
+  ())
+
+(defclass node-iterator (iterator)
+  ())
+
+(defclass redland-list (pointer-wrapper)
+  ())
+
+(defclass redland-stream (pointer-wrapper)
+  ())
+
+(defclass statement-stream (redland-stream)
+  ())
+
+(defclass query (pointer-wrapper)
+  ())
+
+(defclass query-results (pointer-wrapper)
+  ())
+
+(defclass query-results-formatter (pointer-wrapper)
+  ())
 
 (declaim (inline get-world))
 (defun get-world (wrapper)
@@ -125,79 +198,6 @@
         (maybe-free-pointer-array (pointer-array wrapper) (get-type wrapper))
       (cancel-finalization wrapper))))
 
-;;; classes
-
-(defclass world (pointer-wrapper)
-  ((world-alive :initform t :accessor world-alive-p)))
-
-(defclass storage (pointer-wrapper)
-  ())
-
-(defclass model (pointer-wrapper)
-  ())
-
-(defclass node (pointer-wrapper)
-  ())
-
-(defmethod print-object ((node node) stream)
-  (print-unreadable-object (node stream :type t :identity nil)
-    (if (world-alive-p (get-world node))
-        (princ (%node-to-string (get-pointer node 'node)) stream)
-        (princ 'invalidated stream))))
-
-(defclass statement (pointer-wrapper)
-  ())
-
-(defmethod print-object ((statement statement) stream)
-  (print-unreadable-object (statement stream :type t :identity nil)
-    (if (world-alive-p (get-world statement))
-        (princ (%statement-to-string (get-pointer statement 'statement)) stream)
-        (princ 'invalid stream))))
-
-(defclass uri (pointer-wrapper)
-  ())
-
-(defmethod print-object ((uri uri) stream)
-  (print-unreadable-object (uri stream :type t :identity nil)
-    (if (world-alive-p (get-world uri))
-        (princ (%uri-to-string (get-pointer uri 'uri)) stream)
-        (princ 'invalid stream))))
-
-(defclass parser (pointer-wrapper)
-  ())
-
-(defclass serializer (pointer-wrapper)
-  ())
-
-(defclass digest (pointer-wrapper)
-  ())
-
-(defclass hash (pointer-wrapper)
-  ())
-
-(defclass iterator (pointer-wrapper)
-  ())
-
-(defclass node-iterator (iterator)
-  ())
-
-(defclass redland-list (pointer-wrapper)
-  ())
-
-(defclass redland-stream (pointer-wrapper)
-  ())
-
-(defclass statement-stream (redland-stream)
-  ())
-
-(defclass query (pointer-wrapper)
-  ())
-
-(defclass query-results (pointer-wrapper)
-  ())
-
-(defclass query-results-formatter (pointer-wrapper)
-  ())
 
 ;;; special variables
 (defvar *world* nil)
